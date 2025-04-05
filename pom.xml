@@ -44,6 +44,12 @@
     </dependencyManagement>
 
     <dependencies>
+            <!-- Añadida dependencia de OSHI aquí -->
+<dependency>
+    <groupId>com.github.oshi</groupId>
+    <artifactId>oshi-core</artifactId>
+    <version>6.4.10</version>
+</dependency>
         <dependency>
             <groupId>com.vaadin</groupId>
             <!-- Replace artifactId with vaadin-core to use only free components -->

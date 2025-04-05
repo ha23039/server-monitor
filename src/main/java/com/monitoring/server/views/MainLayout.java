@@ -1,85 +1,73 @@
 package com.monitoring.server.views;
 
+import com.monitoring.server.views.config.AlertConfigView;
+import com.monitoring.server.views.dashboard.DashboardView;
+import com.monitoring.server.views.databases.DatabaseView;
+import com.monitoring.server.views.home.HomeView;
+import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.applayout.DrawerToggle;
-import com.vaadin.flow.component.html.Footer;
 import com.vaadin.flow.component.html.H1;
-import com.vaadin.flow.component.html.Header;
 import com.vaadin.flow.component.html.Span;
-import com.vaadin.flow.component.icon.SvgIcon;
-import com.vaadin.flow.component.orderedlayout.Scroller;
-import com.vaadin.flow.component.sidenav.SideNav;
-import com.vaadin.flow.component.sidenav.SideNavItem;
-import com.vaadin.flow.router.Layout;
-import com.vaadin.flow.server.auth.AnonymousAllowed;
-import com.vaadin.flow.server.menu.MenuConfiguration;
-import com.vaadin.flow.server.menu.MenuEntry;
+import com.vaadin.flow.component.icon.Icon;
+import com.vaadin.flow.component.icon.VaadinIcon;
+import com.vaadin.flow.component.tabs.Tab;
+import com.vaadin.flow.component.tabs.Tabs;
+import com.vaadin.flow.router.RouterLink;
 import com.vaadin.flow.theme.lumo.LumoUtility;
-import java.util.List;
 
 /**
- * The main view is a top-level placeholder for other views.
+ * Diseño principal de la aplicación.
+ * Contiene la barra superior y el menú lateral.
  */
-@Layout
-@AnonymousAllowed
 public class MainLayout extends AppLayout {
 
-    private H1 viewTitle;
-
     public MainLayout() {
-        setPrimarySection(Section.DRAWER);
-        addDrawerContent();
-        addHeaderContent();
+        createHeader();
+        createDrawer();
     }
 
-    private void addHeaderContent() {
+    private void createHeader() {
+        H1 logo = new H1("Server Monitor");
+        logo.addClassNames(
+            LumoUtility.FontSize.LARGE,
+            LumoUtility.Margin.MEDIUM
+        );
+
         DrawerToggle toggle = new DrawerToggle();
-        toggle.setAriaLabel("Menu toggle");
 
-        viewTitle = new H1();
-        viewTitle.addClassNames(LumoUtility.FontSize.LARGE, LumoUtility.Margin.NONE);
-
-        addToNavbar(true, toggle, viewTitle);
+        addToNavbar(toggle, logo);
     }
 
-    private void addDrawerContent() {
-        Span appName = new Span("Server Monitor");
-        appName.addClassNames(LumoUtility.FontWeight.SEMIBOLD, LumoUtility.FontSize.LARGE);
-        Header header = new Header(appName);
+    private void createDrawer() {
+        Tabs tabs = new Tabs();
+        tabs.setOrientation(Tabs.Orientation.VERTICAL);
+        tabs.addClassNames(LumoUtility.Width.FULL);
 
-        Scroller scroller = new Scroller(createNavigation());
-
-        addToDrawer(header, scroller, createFooter());
+        // Home
+        tabs.add(createTab(HomeView.class, VaadinIcon.HOME, "Home"));
+        
+        // Dashboard
+        tabs.add(createTab(DashboardView.class, VaadinIcon.DASHBOARD, "Dashboard"));
+        
+        // Bases de datos
+        tabs.add(createTab(DatabaseView.class, VaadinIcon.DATABASE, "Bases de Datos"));
+    
+        // Configuraciones
+        tabs.add(createTab(AlertConfigView.class, VaadinIcon.COGS, "Configuración"));
+        
+        addToDrawer(tabs);
     }
-
-    private SideNav createNavigation() {
-        SideNav nav = new SideNav();
-
-        List<MenuEntry> menuEntries = MenuConfiguration.getMenuEntries();
-        menuEntries.forEach(entry -> {
-            if (entry.icon() != null) {
-                nav.addItem(new SideNavItem(entry.title(), entry.path(), new SvgIcon(entry.icon())));
-            } else {
-                nav.addItem(new SideNavItem(entry.title(), entry.path()));
-            }
-        });
-
-        return nav;
-    }
-
-    private Footer createFooter() {
-        Footer layout = new Footer();
-
-        return layout;
-    }
-
-    @Override
-    protected void afterNavigation() {
-        super.afterNavigation();
-        viewTitle.setText(getCurrentPageTitle());
-    }
-
-    private String getCurrentPageTitle() {
-        return MenuConfiguration.getPageHeader(getContent()).orElse("");
+    
+    private Tab createTab(Class<? extends Component> viewClass, VaadinIcon viewIcon, String viewName) {
+        RouterLink link = new RouterLink(viewClass);
+        
+        Icon icon = viewIcon.create();
+        icon.setSize("18px");
+        
+        link.add(icon);
+        link.add(new Span(viewName));
+        
+        return new Tab(link);
     }
 }

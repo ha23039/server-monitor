@@ -1,5 +1,7 @@
 package com.monitoring.server.views.configurations;
 
+import org.vaadin.lineawesome.LineAwesomeIconUrl;
+
 import com.vaadin.flow.component.Composite;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -15,7 +17,6 @@ import com.vaadin.flow.router.Menu;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility.Gap;
-import org.vaadin.lineawesome.LineAwesomeIconUrl;
 
 @PageTitle("Configurations")
 @Route("configurations")
@@ -46,8 +47,9 @@ public class ConfigurationsView extends Composite<VerticalLayout> {
         layoutRow2.setWidth("100%");
         layoutRow2.setHeight("50px");
         icon.setIcon("lumo:user");
-        icon.setWidth("50px");
-        icon.setHeight("50px");
+        //icon.setWidth("50px");
+        //icon.setHeight("50px");
+        icon.setSize("50px");
         h1.setText("Configuración de Umbrales de Alerta");
         h1.setWidth("max-content");
         textField.setLabel("Umbral de CPU (%)");
