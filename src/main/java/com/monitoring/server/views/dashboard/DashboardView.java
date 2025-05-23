@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import com.monitoring.server.data.entity.AlertConfiguration;
 import com.monitoring.server.data.entity.ProcessInfo;
 import com.monitoring.server.data.entity.SystemMetric;
+import com.monitoring.server.security.SecurityAnnotations.RequiresAuth;
 import com.monitoring.server.service.interfaces.AlertConfigService;
 import com.monitoring.server.service.interfaces.ProcessInfoService;
 import com.monitoring.server.service.interfaces.SystemMonitorService;
@@ -32,6 +33,7 @@ import com.vaadin.flow.router.Route;
 
 @Route(value = "", layout = MainLayout.class)
 @PageTitle("Dashboard (Métricas en Tiempo Real)")
+@RequiresAuth // Require authentication for dashboard access
 public class DashboardView extends VerticalLayout {
 
     private final SystemMonitorService monitorService;
@@ -244,26 +246,18 @@ public class DashboardView extends VerticalLayout {
         if (cpuAlert) {
             alertValues.put("CPU", currentMetrics.getCpuUsage());
             thresholds.put("CPU", config.getCpuThreshold());
-            System.out.println("¡ALERTA DE CPU! Valor actual: " + currentMetrics.getCpuUsage() + "%, umbral: " + config.getCpuThreshold() + "%");
         }
         
         if (memoryAlert) {
             alertValues.put("Memoria", currentMetrics.getMemoryUsage());
             thresholds.put("Memoria", config.getMemoryThreshold());
-            System.out.println("¡ALERTA DE MEMORIA! Valor actual: " + currentMetrics.getMemoryUsage() + "%, umbral: " + config.getMemoryThreshold() + "%");
         }
         
         if (diskAlert) {
             alertValues.put("Disco", currentMetrics.getDiskUsage());
             thresholds.put("Disco", config.getDiskThreshold());
-            System.out.println("¡ALERTA DE DISCO! Valor actual: " + currentMetrics.getDiskUsage() + "%, umbral: " + config.getDiskThreshold() + "%");
         }
         
-        System.out.println("Estado de alertas - CPU: " + cpuAlert + ", Memoria: " + memoryAlert + ", Disco: " + diskAlert);
-        System.out.println("Total de alertas activas: " + alertValues.size());
-        System.out.println("¿Mostrar banner de alertas? " + hasAlerts);
-        
-        // Asegúrate de que alertBanner.setAlerts() procese correctamente múltiples alertas
         alertBanner.setAlerts(hasAlerts, alertValues, thresholds);
     }
 }

@@ -3,7 +3,11 @@ package com.monitoring.server.views.config;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Autowired;
+
 import com.monitoring.server.data.entity.AlertConfiguration;
+import com.monitoring.server.security.MenuSecurityHelper;
+import com.monitoring.server.security.SecurityAnnotations.RequiresOperator;
 import com.monitoring.server.service.interfaces.AlertConfigService;
 import com.monitoring.server.views.MainLayout;
 import com.vaadin.flow.component.Component;
@@ -20,26 +24,27 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 
-import jakarta.annotation.security.PermitAll;
-
 /**
- * Vista para configurar los umbrales de alertas del sistema.
- * Permite establecer los valores para generar alertas en componentes como CPU, RAM y disco.
+ * Vista para configurar los umbrales de alertas del sistema con seguridad basada en roles.
+ * SYSADMIN: Puede modificar configuraciones
+ * OPERATOR: Solo lectura
  */
 @PageTitle("Configuración de Umbrales de Alerta")
 @Route(value = "config", layout = MainLayout.class)
-@PermitAll
+@RequiresOperator // Requires OPERATOR or higher
 public class AlertConfigView extends VerticalLayout {
 
     private final AlertConfigService alertConfigService;
+    private final MenuSecurityHelper securityHelper;
     private final Map<String, NumberField> thresholdFields = new HashMap<>();
     
     /**
      * Constructor de la vista de configuración de alertas.
-     * @param alertConfigService servicio para gestionar configuraciones de alertas
      */
-    public AlertConfigView(AlertConfigService alertConfigService) {
+    public AlertConfigView(@Autowired AlertConfigService alertConfigService,
+                          @Autowired MenuSecurityHelper securityHelper) {
         this.alertConfigService = alertConfigService;
+        this.securityHelper = securityHelper;
         
         addClassName("alert-config-view");
         setSizeFull();
@@ -48,7 +53,11 @@ public class AlertConfigView extends VerticalLayout {
         
         add(createTitle());
         add(createConfigForm());
-        add(createSaveButton());
+        
+        // Only show save button for sysadmin
+        if (securityHelper.canConfigureAlerts()) {
+            add(createSaveButton());
+        }
         
         // Inicializar configuraciones por defecto si no existen
         alertConfigService.initDefaultConfigurations();
@@ -59,7 +68,6 @@ public class AlertConfigView extends VerticalLayout {
     
     /**
      * Crea el título de la vista.
-     * @return componente con el título
      */
     private Component createTitle() {
         H2 title = new H2("Configuración de Umbrales de Alerta");
@@ -68,7 +76,17 @@ public class AlertConfigView extends VerticalLayout {
             LumoUtility.Margin.Bottom.MEDIUM
         );
         
-        VerticalLayout header = new VerticalLayout(title);
+        // Add role indicator
+        Span roleInfo = new Span();
+        if (securityHelper.canConfigureAlerts()) {
+            roleInfo.setText("Modo Administrador - Puede modificar configuraciones");
+            roleInfo.getStyle().set("color", "var(--lumo-success-color)");
+        } else {
+            roleInfo.setText("Modo Solo Lectura - Configuraciones actuales");
+            roleInfo.getStyle().set("color", "var(--lumo-warning-color)");
+        }
+        
+        VerticalLayout header = new VerticalLayout(title, roleInfo);
         header.setPadding(false);
         header.setSpacing(false);
         
@@ -77,7 +95,6 @@ public class AlertConfigView extends VerticalLayout {
     
     /**
      * Crea el formulario de configuración.
-     * @return componente con el formulario
      */
     private Component createConfigForm() {
         FormLayout form = new FormLayout();
@@ -94,18 +111,35 @@ public class AlertConfigView extends VerticalLayout {
         thresholdFields.put("Memory", ramThreshold);
         thresholdFields.put("Disk", diskThreshold);
         
+        // Set read-only for operators
+        boolean isReadOnly = !securityHelper.canConfigureAlerts();
+        cpuThreshold.setReadOnly(isReadOnly);
+        ramThreshold.setReadOnly(isReadOnly);
+        diskThreshold.setReadOnly(isReadOnly);
+        
         form.addFormItem(cpuThreshold, "Umbral de CPU (%)");
         form.addFormItem(ramThreshold, "Umbral de RAM (%)");
         form.addFormItem(diskThreshold, "Umbral de Disco (%)");
+        
+        // Add help text for read-only mode
+        if (isReadOnly) {
+            Span helpText = new Span("📖 Estás viendo las configuraciones actuales en modo solo lectura. " +
+                                   "Se requiere rol de Administrador del Sistema para modificar estos valores.");
+            helpText.getStyle()
+                .set("font-style", "italic")
+                .set("color", "var(--lumo-secondary-text-color)")
+                .set("margin-top", "1rem");
+            
+            VerticalLayout formWrapper = new VerticalLayout(form, helpText);
+            formWrapper.setPadding(false);
+            return formWrapper;
+        }
         
         return form;
     }
     
     /**
      * Crea un campo para valor umbral.
-     * @param name nombre del componente (CPU, RAM, Disco)
-     * @param unit unidad de medida (%, MB, etc.)
-     * @return campo configurado para valores umbral
      */
     private NumberField createThresholdField(String name, String unit) {
         NumberField field = new NumberField();
@@ -123,8 +157,7 @@ public class AlertConfigView extends VerticalLayout {
     }
     
     /**
-     * Crea el botón para guardar la configuración.
-     * @return botón de guardar
+     * Crea el botón para guardar la configuración (solo para sysadmin).
      */
     private Component createSaveButton() {
         Button saveButton = new Button("Guardar Configuración");
@@ -156,9 +189,14 @@ public class AlertConfigView extends VerticalLayout {
     }
     
     /**
-     * Guarda la configuración en la base de datos.
+     * Guarda la configuración en la base de datos (solo para sysadmin).
      */
     private void saveConfiguration() {
+        if (!securityHelper.canConfigureAlerts()) {
+            showPermissionDeniedNotification();
+            return;
+        }
+        
         try {
             for (String componentName : thresholdFields.keySet()) {
                 Double value = thresholdFields.get(componentName).getValue();
@@ -212,5 +250,15 @@ public class AlertConfigView extends VerticalLayout {
             Notification notification = Notification.show("Error al guardar la configuración: " + e.getMessage());
             notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
+    }
+    
+    /**
+     * Muestra notificación de permisos insuficientes.
+     */
+    private void showPermissionDeniedNotification() {
+        Notification notification = Notification.show(
+            "No tienes permisos suficientes para realizar esta acción. Se requiere rol de Administrador del Sistema."
+        );
+        notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
     }
 }

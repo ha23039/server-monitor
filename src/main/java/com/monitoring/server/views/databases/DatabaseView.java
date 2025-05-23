@@ -1,6 +1,10 @@
 package com.monitoring.server.views.databases;
 
+import org.springframework.beans.factory.annotation.Autowired;
+
 import com.monitoring.server.data.entity.Database;
+import com.monitoring.server.security.MenuSecurityHelper;
+import com.monitoring.server.security.SecurityAnnotations.RequiresOperator;
 import com.monitoring.server.service.interfaces.DatabaseService;
 import com.monitoring.server.util.DatabaseConnectionTester;
 import com.monitoring.server.views.MainLayout;
@@ -22,30 +26,31 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 
-import jakarta.annotation.security.PermitAll;
-
 /**
- * Vista para gestionar las bases de datos monitoreadas.
- * Permite listar, agregar, editar y eliminar bases de datos.
+ * Vista para gestionar las bases de datos monitoreadas con seguridad basada en roles.
+ * SYSADMIN: Acceso completo (CRUD)
+ * OPERATOR: Solo lectura y prueba de conexiones
  */
 @PageTitle("Bases de Datos Monitoreadas")
 @Route(value = "databases", layout = MainLayout.class)
-@PermitAll
+@RequiresOperator // Requires OPERATOR or higher (SYSADMIN)
 public class DatabaseView extends VerticalLayout {
 
     private final DatabaseService databaseService;
-    private final DatabaseConnectionTester connectionTester; // Agregamos esta dependencia
+    private final DatabaseConnectionTester connectionTester;
+    private final MenuSecurityHelper securityHelper;
     private final Grid<Database> grid = new Grid<>(Database.class, false);
     private DatabaseForm form;
 
     /**
      * Constructor de la vista de bases de datos.
-     * @param databaseService servicio para gestionar bases de datos
-     * @param connectionTester probador de conexiones a bases de datos
      */
-    public DatabaseView(DatabaseService databaseService, DatabaseConnectionTester connectionTester) {
+    public DatabaseView(@Autowired DatabaseService databaseService, 
+                       @Autowired DatabaseConnectionTester connectionTester,
+                       @Autowired MenuSecurityHelper securityHelper) {
         this.databaseService = databaseService;
-        this.connectionTester = connectionTester; // Inicializamos la dependencia
+        this.connectionTester = connectionTester;
+        this.securityHelper = securityHelper;
         
         addClassName("database-view");
         setSizeFull();
@@ -53,18 +58,24 @@ public class DatabaseView extends VerticalLayout {
         add(createTitle());
         
         configureGrid();
-        configureForm();
         
-        add(createToolbar());
-        add(createContent());
+        // Only show form for sysadmin
+        if (securityHelper.canManageDatabases()) {
+            configureForm();
+            add(createToolbar());
+            add(createContent());
+            closeEditor();
+        } else {
+            // Read-only view for operators
+            add(createReadOnlyToolbar());
+            add(grid);
+        }
         
         updateList();
-        closeEditor();
     }
 
     /**
      * Crea el título de la vista.
-     * @return componente con el título
      */
     private Component createTitle() {
         H2 title = new H2("Bases de Datos Monitoreadas");
@@ -73,7 +84,21 @@ public class DatabaseView extends VerticalLayout {
             LumoUtility.Margin.Bottom.MEDIUM
         );
         
-        return title;
+        // Add role indicator
+        Span roleInfo = new Span();
+        if (securityHelper.canManageDatabases()) {
+            roleInfo.setText("Modo Administrador - Acceso completo");
+            roleInfo.getStyle().set("color", "var(--lumo-success-color)");
+        } else {
+            roleInfo.setText("Modo Solo Lectura - Puede probar conexiones");
+            roleInfo.getStyle().set("color", "var(--lumo-warning-color)");
+        }
+        
+        VerticalLayout header = new VerticalLayout(title, roleInfo);
+        header.setPadding(false);
+        header.setSpacing(false);
+        
+        return header;
     }
 
     /**
@@ -108,14 +133,37 @@ public class DatabaseView extends VerticalLayout {
             return monitorEnabled;
         })).setHeader("Monitorear").setAutoWidth(true);
         
-        grid.addColumn(new ComponentRenderer<>(database -> {
-            HorizontalLayout actions = new HorizontalLayout();
-            
-            Button testButton = new Button(new Icon(VaadinIcon.CONNECT));
-            testButton.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_TERTIARY);
-            testButton.getElement().setAttribute("title", "Probar conexión");
-            testButton.addClickListener(e -> testConnection(database));
-            
+        grid.addColumn(new ComponentRenderer<>(this::createActionsColumn))
+            .setHeader("Acciones").setAutoWidth(true);
+        
+        grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
+        
+        // Only allow selection for sysadmin
+        if (securityHelper.canManageDatabases()) {
+            grid.asSingleSelect().addValueChangeListener(e -> {
+                if (e.getValue() != null) {
+                    editDatabase(e.getValue());
+                }
+            });
+        }
+    }
+
+    /**
+     * Creates action buttons based on user role
+     */
+    private Component createActionsColumn(Database database) {
+        HorizontalLayout actions = new HorizontalLayout();
+        
+        // Test connection button - available to both roles
+        Button testButton = new Button(new Icon(VaadinIcon.CONNECT));
+        testButton.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_TERTIARY);
+        testButton.getElement().setAttribute("title", "Probar conexión");
+        testButton.addClickListener(e -> testConnection(database));
+        
+        actions.add(testButton);
+        
+        // Edit and delete buttons only for sysadmin
+        if (securityHelper.canManageDatabases()) {
             Button editButton = new Button(new Icon(VaadinIcon.EDIT));
             editButton.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_TERTIARY);
             editButton.getElement().setAttribute("title", "Editar");
@@ -126,35 +174,26 @@ public class DatabaseView extends VerticalLayout {
             deleteButton.getElement().setAttribute("title", "Eliminar");
             deleteButton.addClickListener(e -> deleteDatabase(database));
             
-            actions.add(testButton, editButton, deleteButton);
-            return actions;
-        })).setHeader("Acciones").setAutoWidth(true);
+            actions.add(editButton, deleteButton);
+        }
         
-        grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
-        
-        grid.asSingleSelect().addValueChangeListener(e -> {
-            if (e.getValue() != null) {
-                editDatabase(e.getValue());
-            }
-        });
+        return actions;
     }
 
     /**
-     * Configura el formulario de edición.
+     * Configura el formulario de edición (solo para sysadmin).
      */
     private void configureForm() {
-        form = new DatabaseForm(databaseService, connectionTester); // Pasamos las dependencias necesarias
+        form = new DatabaseForm(databaseService, connectionTester);
         form.setWidth("25em");
         
-        // Registramos los listeners para los eventos del formulario
         form.addListener(DatabaseForm.SaveEvent.class, this::saveDatabase);
         form.addListener(DatabaseForm.CloseEvent.class, e -> closeEditor());
         form.addListener(DatabaseForm.DeleteEvent.class, e -> deleteDatabase(e.getDatabase()));
     }
 
     /**
-     * Crea la barra de herramientas.
-     * @return componente con la barra de herramientas
+     * Crea la barra de herramientas para sysadmin.
      */
     private Component createToolbar() {
         Button addButton = new Button("Agregar BD", new Icon(VaadinIcon.PLUS));
@@ -169,8 +208,22 @@ public class DatabaseView extends VerticalLayout {
     }
 
     /**
-     * Crea el contenido principal (tabla y formulario).
-     * @return componente con el contenido
+     * Crea la barra de herramientas para operadores (solo refrescar).
+     */
+    private Component createReadOnlyToolbar() {
+        Button refreshButton = new Button("Actualizar", new Icon(VaadinIcon.REFRESH));
+        refreshButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        refreshButton.addClickListener(e -> updateList());
+        
+        HorizontalLayout toolbar = new HorizontalLayout(refreshButton);
+        toolbar.setWidthFull();
+        toolbar.setJustifyContentMode(JustifyContentMode.END);
+        
+        return toolbar;
+    }
+
+    /**
+     * Crea el contenido principal (tabla y formulario) para sysadmin.
      */
     private Component createContent() {
         HorizontalLayout content = new HorizontalLayout(grid, form);
@@ -192,15 +245,22 @@ public class DatabaseView extends VerticalLayout {
      * Cierra el editor de formulario.
      */
     private void closeEditor() {
-        form.setDatabase(null);
-        form.setVisible(false);
-        grid.asSingleSelect().clear();
+        if (form != null) {
+            form.setDatabase(null);
+            form.setVisible(false);
+            grid.asSingleSelect().clear();
+        }
     }
 
     /**
-     * Abre el editor para agregar una nueva base de datos.
+     * Abre el editor para agregar una nueva base de datos (solo sysadmin).
      */
     private void addDatabase() {
+        if (!securityHelper.canManageDatabases()) {
+            showPermissionDeniedNotification();
+            return;
+        }
+        
         grid.asSingleSelect().clear();
         Database newDatabase = new Database();
         newDatabase.setStatus("Inactiva");
@@ -209,10 +269,14 @@ public class DatabaseView extends VerticalLayout {
     }
 
     /**
-     * Abre el editor para editar una base de datos existente.
-     * @param database base de datos a editar
+     * Abre el editor para editar una base de datos existente (solo sysadmin).
      */
     private void editDatabase(Database database) {
+        if (!securityHelper.canManageDatabases()) {
+            showPermissionDeniedNotification();
+            return;
+        }
+        
         if (database == null) {
             closeEditor();
         } else {
@@ -222,10 +286,14 @@ public class DatabaseView extends VerticalLayout {
     }
 
     /**
-     * Guarda una base de datos (nueva o editada).
-     * @param event evento con los datos a guardar
+     * Guarda una base de datos (solo sysadmin).
      */
     private void saveDatabase(DatabaseForm.SaveEvent event) {
+        if (!securityHelper.canManageDatabases()) {
+            showPermissionDeniedNotification();
+            return;
+        }
+        
         try {
             databaseService.save(event.getDatabase());
             updateList();
@@ -240,10 +308,14 @@ public class DatabaseView extends VerticalLayout {
     }
 
     /**
-     * Elimina una base de datos.
-     * @param database base de datos a eliminar
+     * Elimina una base de datos (solo sysadmin).
      */
     private void deleteDatabase(Database database) {
+        if (!securityHelper.canManageDatabases()) {
+            showPermissionDeniedNotification();
+            return;
+        }
+        
         try {
             databaseService.deleteById(database.getId());
             updateList();
@@ -258,19 +330,18 @@ public class DatabaseView extends VerticalLayout {
     }
 
     /**
-     * Prueba la conexión a una base de datos.
-     * @param database base de datos a probar
+     * Prueba la conexión a una base de datos (disponible para operadores y sysadmin).
      */
     private void testConnection(Database database) {
         try {
-            boolean success = connectionTester.testConnection(database); // Usamos el connectionTester directamente
+            boolean success = connectionTester.testConnection(database);
             
             if (success) {
                 Notification notification = Notification.show("Conexión exitosa");
                 notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                 
-                // Actualizar estado a "Activa" si la conexión es exitosa
-                if (!"Activa".equals(database.getStatus())) {
+                // Update status only if user can manage databases
+                if (securityHelper.canManageDatabases() && !"Activa".equals(database.getStatus())) {
                     databaseService.updateStatus(database.getId(), "Activa");
                     updateList();
                 }
@@ -278,8 +349,8 @@ public class DatabaseView extends VerticalLayout {
                 Notification notification = Notification.show("Conexión fallida");
                 notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
                 
-                // Actualizar estado a "Inactiva" si la conexión falla
-                if (!"Inactiva".equals(database.getStatus())) {
+                // Update status only if user can manage databases
+                if (securityHelper.canManageDatabases() && !"Inactiva".equals(database.getStatus())) {
                     databaseService.updateStatus(database.getId(), "Inactiva");
                     updateList();
                 }
@@ -288,5 +359,15 @@ public class DatabaseView extends VerticalLayout {
             Notification notification = Notification.show("Error al probar conexión: " + e.getMessage());
             notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
+    }
+
+    /**
+     * Muestra notificación de permisos insuficientes.
+     */
+    private void showPermissionDeniedNotification() {
+        Notification notification = Notification.show(
+            "No tienes permisos suficientes para realizar esta acción. Se requiere rol de Administrador del Sistema."
+        );
+        notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
     }
 }
