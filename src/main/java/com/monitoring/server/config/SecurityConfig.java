@@ -15,8 +15,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
@@ -41,7 +39,6 @@ public class SecurityConfig {
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // Sin sesiones para APIs
             .oauth2ResourceServer(oauth2 -> 
                 oauth2.jwt(jwt -> jwt
-                    .decoder(jwtDecoder())
                     .jwtAuthenticationConverter(jwtAuthenticationConverter()))) // Convertir claims de Auth0
             .authorizeHttpRequests(auth -> auth
                 // Rutas públicas de la API
@@ -57,11 +54,7 @@ public class SecurityConfig {
         return http.build();
     }
 
-    @Bean
-    public JwtDecoder jwtDecoder() {
-        String jwkSetUri = "https://" + auth0Domain + "/.well-known/jwks.json";
-        return NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
-    }
+    // Usar el jwtDecoder existente de Auth0Config
 
     @Bean
     public JwtAuthenticationConverter jwtAuthenticationConverter() {
