@@ -9,7 +9,12 @@ import org.springframework.security.access.prepost.PreAuthorize;
 
 /**
  * Custom security annotations for Server Monitoring System
- * Unified with Auth0 roles: admin, operator, viewer
+ * Unified with Auth0 roles: admin, operator, viewer (WITH ROLE_ prefix for Spring Security)
+ * 
+ * Role Hierarchy:
+ * - ADMIN: Full system access (users, settings, all monitoring)
+ * - OPERATOR: Monitoring operations (databases, alerts, configurations)  
+ * - VIEWER: Read-only access (dashboards, metrics)
  */
 public class SecurityAnnotations {
 

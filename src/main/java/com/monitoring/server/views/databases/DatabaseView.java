@@ -34,8 +34,7 @@ import com.vaadin.flow.theme.lumo.LumoUtility;
  */
 @PageTitle("Bases de Datos Monitoreadas")
 @Route(value = "databases", layout = MainLayout.class)
-//@RequiresOperator // Requires OPERATOR or higher (SYSADMIN)
-@AnonymousAllowed  // ← TEMPORAL para testing
+@RequiresOperator // Requires OPERATOR or higher (ADMIN)
 
 public class DatabaseView extends VerticalLayout {
 
