@@ -31,8 +31,8 @@ import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
-@Route(value = "", layout = MainLayout.class)
-@PageTitle("Dashboard (Métricas en Tiempo Real)")
+@Route(value = "dashboard", layout = MainLayout.class) // RUTA ESPECÍFICA - NO CONFLICTO
+@PageTitle("Dashboard - Métricas en Tiempo Real")
 @RequiresAuth // Require authentication for dashboard access
 public class DashboardView extends VerticalLayout {
 
