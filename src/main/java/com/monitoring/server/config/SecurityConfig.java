@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,6 +24,8 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 
+import com.monitoring.server.service.impl.AuthService;
+
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -33,6 +36,9 @@ public class SecurityConfig {
 
     @Value("${auth0.audience}")
     private String auth0Audience;
+    
+    @Autowired
+    private AuthService authService;
 
     @Bean
     @Order(1) // API Security - Mayor prioridad
@@ -71,7 +77,7 @@ public class SecurityConfig {
                 // Rutas de Vaadin
                 .requestMatchers("/VAADIN/**", "/frontend/**", "/frontend-es6/**", "/frontend-es5/**").permitAll()
                 // Rutas solo para administradores
-                .requestMatchers("/admin/**").hasAuthority("ROLE_admin")
+                .requestMatchers("/admin/**", "/users/**").hasAuthority("ROLE_admin")
                 // Rutas para usuarios autenticados (incluyendo home)
                 .requestMatchers("/home/**", "/dashboard/**", "/monitor/**", "/databases/**", "/config/**").hasAnyAuthority("ROLE_user", "ROLE_admin")
                 // Todas las demás rutas requieren autenticación
@@ -106,6 +112,14 @@ public class SecurityConfig {
             // Extraer roles de Auth0 usando el namespace personalizado
             Map<String, Object> claims = oidcUser.getClaims();
             Collection<String> roles = extractRolesFromClaims(claims);
+            
+            // *** SINCRONIZAR USUARIO CON NUESTRA BASE DE DATOS ***
+            try {
+                authService.createOrUpdateUser(oidcUser);
+            } catch (Exception e) {
+                // Log error pero no interrumpir el login
+                System.err.println("Error sincronizando usuario: " + e.getMessage());
+            }
             
             // Convertir roles a authorities
             List<SimpleGrantedAuthority> authorities = roles.stream()

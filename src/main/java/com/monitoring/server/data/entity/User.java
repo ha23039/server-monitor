@@ -16,6 +16,7 @@ import jakarta.persistence.Table;
 
 /**
  * Entidad User para almacenar información de usuarios autenticados con Auth0
+ * Roles simplificados para coincidir con Auth0: admin, user
  */
 @Entity
 @Table(name = "users")
@@ -44,7 +45,7 @@ public class User implements Serializable {
     
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false)
-    private UserRole role = UserRole.VIEWER;
+    private UserRole role = UserRole.USER; // Cambiado de VIEWER a USER
     
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
@@ -58,11 +59,10 @@ public class User implements Serializable {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
     
-    // Enum para roles
+    // Enum simplificado para coincidir con Auth0
     public enum UserRole {
-        SYSADMIN("sysadmin"),
-        OPERATOR("operator"), 
-        VIEWER("viewer");
+        ADMIN("admin"),      // Coincide con Auth0 "admin" 
+        USER("user");        // Coincide con Auth0 "user"
         
         private final String roleName;
         
@@ -80,7 +80,19 @@ public class User implements Serializable {
                     return role;
                 }
             }
-            return VIEWER; // Default role
+            return USER; // Default role
+        }
+        
+        // Método para obtener el display name
+        public String getDisplayName() {
+            switch (this) {
+                case ADMIN:
+                    return "Administrador";
+                case USER:
+                    return "Usuario";
+                default:
+                    return "Usuario";
+            }
         }
     }
     
@@ -199,29 +211,30 @@ public class User implements Serializable {
         this.updatedAt = updatedAt;
     }
     
-    // Utility methods for role checking
-    public boolean isSysAdmin() {
-        return role == UserRole.SYSADMIN;
+    // Utility methods for role checking - SIMPLIFICADOS
+    public boolean isAdmin() {
+        return role == UserRole.ADMIN;
     }
     
-    public boolean isOperator() {
-        return role == UserRole.OPERATOR;
+    public boolean isUser() {
+        return role == UserRole.USER;
     }
     
-    public boolean isViewer() {
-        return role == UserRole.VIEWER;
-    }
-    
-    public boolean hasWriteAccess() {
-        return role == UserRole.SYSADMIN;
+    // Métodos de permisos simplificados
+    public boolean canManageSystem() {
+        return role == UserRole.ADMIN;
     }
     
     public boolean canViewMetrics() {
-        return role == UserRole.SYSADMIN || role == UserRole.OPERATOR || role == UserRole.VIEWER;
+        return true; // Ambos roles pueden ver métricas
     }
     
-    public boolean canManageAlerts() {
-        return role == UserRole.SYSADMIN || role == UserRole.OPERATOR;
+    public boolean canConfigureAlerts() {
+        return role == UserRole.ADMIN;
+    }
+    
+    public boolean canManageDatabases() {
+        return role == UserRole.ADMIN;
     }
     
     @Override

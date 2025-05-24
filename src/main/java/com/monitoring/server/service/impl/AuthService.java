@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 
@@ -18,6 +19,7 @@ import com.monitoring.server.data.repository.UserRepository;
 
 /**
  * Service for handling authentication and user management
+ * Actualizado para usar roles simplificados: ADMIN, USER
  */
 @Service
 public class AuthService {
@@ -37,6 +39,14 @@ public class AuthService {
             return Optional.empty();
         }
 
+        // Para OAuth2 login (OidcUser)
+        if (authentication.getPrincipal() instanceof OidcUser) {
+            OidcUser oidcUser = (OidcUser) authentication.getPrincipal();
+            String auth0Subject = oidcUser.getSubject();
+            return userRepository.findByAuth0Subject(auth0Subject);
+        }
+        
+        // Para JWT tokens (APIs)
         if (authentication.getPrincipal() instanceof Jwt jwt) {
             String auth0Subject = jwt.getSubject();
             return userRepository.findByAuth0Subject(auth0Subject);
@@ -51,7 +61,7 @@ public class AuthService {
     public UserRole getCurrentUserRole() {
         return getCurrentUser()
             .map(User::getRole)
-            .orElse(UserRole.VIEWER);
+            .orElse(UserRole.USER);
     }
 
     /**
@@ -60,47 +70,71 @@ public class AuthService {
     public boolean hasRole(UserRole requiredRole) {
         UserRole currentRole = getCurrentUserRole();
         
-        // Hierarchy: SYSADMIN > OPERATOR > VIEWER
+        // Jerarquía simplificada: ADMIN > USER
         switch (requiredRole) {
-            case VIEWER:
-                return true; // All roles can view
-            case OPERATOR:
-                return currentRole == UserRole.SYSADMIN || currentRole == UserRole.OPERATOR;
-            case SYSADMIN:
-                return currentRole == UserRole.SYSADMIN;
+            case USER:
+                return true; // Ambos roles pueden acceder a funciones USER
+            case ADMIN:
+                return currentRole == UserRole.ADMIN;
             default:
                 return false;
         }
     }
 
     /**
-     * Check if current user is system administrator
+     * Check if current user is administrator
      */
-    public boolean isSysAdmin() {
-        return hasRole(UserRole.SYSADMIN);
+    public boolean isAdmin() {
+        return hasRole(UserRole.ADMIN);
     }
 
     /**
-     * Check if current user is operator or higher
+     * Check if current user can manage system
      */
-    public boolean isOperatorOrHigher() {
-        return hasRole(UserRole.OPERATOR);
+    public boolean canManageSystem() {
+        return isAdmin();
     }
 
     /**
-     * Create or update user from Auth0 JWT token
+     * Check if current user can configure alerts
      */
-    public User createOrUpdateUser(Jwt jwt) {
-        String auth0Subject = jwt.getSubject();
-        String email = jwt.getClaimAsString("email");
-        String name = jwt.getClaimAsString("name");
-        String nickname = jwt.getClaimAsString("nickname");
-        String picture = jwt.getClaimAsString("picture");
+    public boolean canConfigureAlerts() {
+        return isAdmin();
+    }
+
+    /**
+     * Check if current user can manage databases
+     */
+    public boolean canManageDatabases() {
+        return isAdmin();
+    }
+
+    /**
+     * Check if current user can manage users
+     */
+    public boolean canManageUsers() {
+        return isAdmin();
+    }
+
+    /**
+     * Check if current user can view dashboards
+     */
+    public boolean canAccessDashboard() {
+        return getCurrentUser().isPresent(); // Cualquier usuario autenticado
+    }
+
+    /**
+     * Create or update user from Auth0 OIDC token
+     */
+    public User createOrUpdateUser(OidcUser oidcUser) {
+        String auth0Subject = oidcUser.getSubject();
+        String email = oidcUser.getEmail();
+        String name = oidcUser.getFullName();
+        String nickname = oidcUser.getClaimAsString("nickname"); // Usar getClaimAsString
+        String picture = oidcUser.getClaimAsString("picture");   // Usar getClaimAsString
         
         // Extract roles from Auth0 custom claim
-        @SuppressWarnings("unchecked")
-        List<String> roles = jwt.getClaimAsStringList("https://servermonitor.app/roles");
-        UserRole userRole = extractUserRole(roles);
+        UserRole userRole = extractUserRoleFromOidc(oidcUser);
 
         Optional<User> existingUser = userRepository.findByAuth0Subject(auth0Subject);
         
@@ -124,25 +158,81 @@ public class AuthService {
     }
 
     /**
-     * Extract user role from Auth0 roles claim
+     * Create or update user from Auth0 JWT token (for APIs)
+     */
+    public User createOrUpdateUser(Jwt jwt) {
+        String auth0Subject = jwt.getSubject();
+        String email = jwt.getClaimAsString("email");
+        String name = jwt.getClaimAsString("name");
+        String nickname = jwt.getClaimAsString("nickname");
+        String picture = jwt.getClaimAsString("picture");
+        
+        // Extract roles from Auth0 custom claim
+        UserRole userRole = extractUserRoleFromJwt(jwt);
+
+        Optional<User> existingUser = userRepository.findByAuth0Subject(auth0Subject);
+        
+        if (existingUser.isPresent()) {
+            // Update existing user
+            User user = existingUser.get();
+            user.setName(name);
+            user.setNickname(nickname);
+            user.setPicture(picture);
+            user.setRole(userRole);
+            user.setLastLogin(LocalDateTime.now());
+            return userRepository.save(user);
+        } else {
+            // Create new user
+            User newUser = new User(auth0Subject, email, name, userRole);
+            newUser.setNickname(nickname);
+            newUser.setPicture(picture);
+            newUser.setLastLogin(LocalDateTime.now());
+            return userRepository.save(newUser);
+        }
+    }
+
+    /**
+     * Extract user role from Auth0 OIDC user
+     */
+    private UserRole extractUserRoleFromOidc(OidcUser oidcUser) {
+        // Buscar en claims de Auth0
+        Object rolesObj = oidcUser.getClaims().get("https://servermonitor.api/roles");
+        
+        if (rolesObj instanceof List<?>) {
+            @SuppressWarnings("unchecked")
+            List<String> roles = (List<String>) rolesObj;
+            return extractUserRole(roles);
+        }
+        
+        return UserRole.USER; // Default
+    }
+
+    /**
+     * Extract user role from Auth0 JWT token
+     */
+    private UserRole extractUserRoleFromJwt(Jwt jwt) {
+        @SuppressWarnings("unchecked")
+        List<String> roles = jwt.getClaimAsStringList("https://servermonitor.api/roles");
+        return extractUserRole(roles);
+    }
+
+    /**
+     * Extract user role from Auth0 roles claim - SIMPLIFICADO
      */
     private UserRole extractUserRole(List<String> roles) {
         if (roles == null || roles.isEmpty()) {
-            return UserRole.VIEWER;
+            return UserRole.USER;
         }
 
-        // Check for highest role first
-        if (roles.contains("sysadmin")) {
-            return UserRole.SYSADMIN;
+        // Mapear roles de Auth0 a nuestros roles
+        if (roles.contains("admin")) {
+            return UserRole.ADMIN;
         }
-        if (roles.contains("operator")) {
-            return UserRole.OPERATOR;
-        }
-        if (roles.contains("viewer")) {
-            return UserRole.VIEWER;
+        if (roles.contains("user")) {
+            return UserRole.USER;
         }
 
-        return UserRole.VIEWER; // Default
+        return UserRole.USER; // Default
     }
 
     /**
@@ -160,11 +250,11 @@ public class AuthService {
     }
 
     /**
-     * Update user role (only for sysadmin)
+     * Update user role (only for admin)
      */
     public User updateUserRole(Long userId, UserRole newRole) {
-        if (!isSysAdmin()) {
-            throw new SecurityException("Only system administrators can update user roles");
+        if (!isAdmin()) {
+            throw new SecurityException("Only administrators can update user roles");
         }
 
         Optional<User> userOpt = userRepository.findById(userId);
@@ -178,11 +268,11 @@ public class AuthService {
     }
 
     /**
-     * Deactivate user (only for sysadmin)
+     * Deactivate user (only for admin)
      */
     public User deactivateUser(Long userId) {
-        if (!isSysAdmin()) {
-            throw new SecurityException("Only system administrators can deactivate users");
+        if (!isAdmin()) {
+            throw new SecurityException("Only administrators can deactivate users");
         }
 
         Optional<User> userOpt = userRepository.findById(userId);
@@ -193,5 +283,47 @@ public class AuthService {
         }
         
         throw new IllegalArgumentException("User not found with ID: " + userId);
+    }
+
+    /**
+     * Activate user (only for admin)
+     */
+    public User activateUser(Long userId) {
+        if (!isAdmin()) {
+            throw new SecurityException("Only administrators can activate users");
+        }
+
+        Optional<User> userOpt = userRepository.findById(userId);
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            user.setActive(true);
+            return userRepository.save(user);
+        }
+        
+        throw new IllegalArgumentException("User not found with ID: " + userId);
+    }
+
+    /**
+     * Get current user display name
+     */
+    public String getCurrentUserName() {
+        return getCurrentUser()
+            .map(user -> user.getName() != null ? user.getName() : user.getEmail())
+            .orElse("Usuario");
+    }
+
+    /**
+     * Get current user role for display
+     */
+    public String getCurrentUserRoleDisplay() {
+        UserRole role = getCurrentUserRole();
+        return role.getDisplayName();
+    }
+
+    /**
+     * Check if user is authenticated
+     */
+    public boolean isAuthenticated() {
+        return getCurrentUser().isPresent();
     }
 }

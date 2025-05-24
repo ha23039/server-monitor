@@ -12,6 +12,7 @@ import com.monitoring.server.data.entity.User.UserRole;
 
 /**
  * Repository for User entity operations
+ * Actualizado para roles simplificados: ADMIN, USER
  */
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
@@ -57,8 +58,14 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByEmail(String email);
     
     /**
-     * Find all system administrators
+     * Find all administrators
      */
-    @Query("SELECT u FROM User u WHERE u.role = 'SYSADMIN' AND u.isActive = true")
-    List<User> findActiveSysAdmins();
+    @Query("SELECT u FROM User u WHERE u.role = 'ADMIN' AND u.isActive = true")
+    List<User> findActiveAdmins();
+    
+    /**
+     * Find all regular users
+     */
+    @Query("SELECT u FROM User u WHERE u.role = 'USER' AND u.isActive = true")
+    List<User> findActiveUsers();
 }

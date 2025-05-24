@@ -3,11 +3,11 @@ package com.monitoring.server.security;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import com.monitoring.server.data.entity.User.UserRole;
 import com.monitoring.server.service.impl.AuthService;
 
 /**
  * Helper class for menu and UI security decisions
+ * Actualizado para roles simplificados: ADMIN, USER
  */
 @Component
 public class MenuSecurityHelper {
@@ -19,81 +19,83 @@ public class MenuSecurityHelper {
      * Check if current user can access dashboard
      */
     public boolean canAccessDashboard() {
-        return authService.getCurrentUser().isPresent();
+        return authService.canAccessDashboard();
     }
 
     /**
      * Check if current user can manage databases
      */
     public boolean canManageDatabases() {
-        return authService.hasRole(UserRole.SYSADMIN);
+        return authService.canManageDatabases();
     }
 
     /**
-     * Check if current user can view databases
+     * Check if current user can view databases (simplified - same as manage for now)
      */
     public boolean canViewDatabases() {
-        return authService.hasRole(UserRole.OPERATOR);
+        return authService.isAuthenticated(); // Cualquier usuario autenticado puede ver
     }
 
     /**
      * Check if current user can configure alerts
      */
     public boolean canConfigureAlerts() {
-        return authService.hasRole(UserRole.SYSADMIN);
+        return authService.canConfigureAlerts();
     }
 
     /**
      * Check if current user can view alert configuration
      */
     public boolean canViewAlertConfig() {
-        return authService.hasRole(UserRole.OPERATOR);
+        return authService.isAuthenticated(); // Cualquier usuario autenticado puede ver
     }
 
     /**
      * Check if current user can acknowledge alerts
      */
     public boolean canAcknowledgeAlerts() {
-        return authService.hasRole(UserRole.OPERATOR);
+        return authService.isAuthenticated(); // Cualquier usuario autenticado puede reconocer alertas
     }
 
     /**
      * Check if current user can manage users
      */
     public boolean canManageUsers() {
-        return authService.hasRole(UserRole.SYSADMIN);
+        return authService.canManageUsers();
     }
 
     /**
      * Get current user role for display purposes
      */
     public String getCurrentUserRoleDisplay() {
-        UserRole role = authService.getCurrentUserRole();
-        switch (role) {
-            case SYSADMIN:
-                return "Administrador del Sistema";
-            case OPERATOR:
-                return "Operador";
-            case VIEWER:
-                return "Visualizador";
-            default:
-                return "Usuario";
-        }
+        return authService.getCurrentUserRoleDisplay();
     }
 
     /**
      * Get current user name for display
      */
     public String getCurrentUserName() {
-        return authService.getCurrentUser()
-            .map(user -> user.getName() != null ? user.getName() : user.getEmail())
-            .orElse("Usuario");
+        return authService.getCurrentUserName();
     }
 
     /**
      * Check if current user is authenticated
      */
     public boolean isAuthenticated() {
-        return authService.getCurrentUser().isPresent();
+        return authService.isAuthenticated();
+    }
+
+    /**
+     * Check if current user is admin
+     */
+    public boolean isAdmin() {
+        return authService.isAdmin();
+    }
+
+    /**
+     * Check if current user is regular user
+     */
+    public boolean isUser() {
+        return authService.isAuthenticated() && !authService.isAdmin();
     }
 }

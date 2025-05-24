@@ -6,7 +6,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import com.monitoring.server.data.entity.User;
 import com.monitoring.server.data.entity.User.UserRole;
-import com.monitoring.server.security.SecurityAnnotations.RequiresSysAdmin;
 import com.monitoring.server.service.impl.AuthService;
 import com.monitoring.server.views.MainLayout;
 import com.vaadin.flow.component.Component;
@@ -27,14 +26,16 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.server.auth.AnonymousAllowed;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 
 /**
- * Vista para gestión de usuarios - Solo accesible para SYSADMIN
+ * Vista para gestión de usuarios - Solo accesible para ADMIN
+ * Actualizada para roles simplificados: ADMIN, USER
  */
 @Route(value = "users", layout = MainLayout.class)
 @PageTitle("Gestión de Usuarios")
-@RequiresSysAdmin
+@AnonymousAllowed // Cambiaremos esto por verificación programática
 public class UserManagementView extends VerticalLayout {
 
     @Autowired
@@ -45,6 +46,12 @@ public class UserManagementView extends VerticalLayout {
     public UserManagementView(@Autowired AuthService authService) {
         this.authService = authService;
         
+        // Verificar permisos
+        if (!authService.canManageUsers()) {
+            add(createAccessDenied());
+            return;
+        }
+        
         addClassName("user-management-view");
         setSizeFull();
         
@@ -52,6 +59,27 @@ public class UserManagementView extends VerticalLayout {
         add(createUserGrid());
         
         refreshUserGrid();
+    }
+
+    private Component createAccessDenied() {
+        VerticalLayout layout = new VerticalLayout();
+        layout.setAlignItems(Alignment.CENTER);
+        layout.setJustifyContentMode(JustifyContentMode.CENTER);
+        layout.setHeightFull();
+        
+        H2 title = new H2("🚫 Acceso Denegado");
+        title.getStyle().set("color", "var(--lumo-error-color)");
+        
+        Span message = new Span("Solo los administradores pueden acceder a la gestión de usuarios.");
+        message.getStyle().set("color", "var(--lumo-secondary-text-color)");
+        
+        Button backButton = new Button("🏠 Volver al Inicio", e -> {
+            getUI().ifPresent(ui -> ui.navigate("home"));
+        });
+        backButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+        
+        layout.add(title, message, backButton);
+        return layout;
     }
 
     private Component createTitle() {
@@ -88,6 +116,11 @@ public class UserManagementView extends VerticalLayout {
             .setAutoWidth(true)
             .setSortable(true);
 
+        // Auth0 Subject column (para debug)
+        userGrid.addColumn(user -> user.getAuth0Subject())
+            .setHeader("Auth0 ID")
+            .setAutoWidth(true);
+
         // Role column with badge
         userGrid.addColumn(new ComponentRenderer<>(this::createRoleBadge))
             .setHeader("Rol")
@@ -117,14 +150,14 @@ public class UserManagementView extends VerticalLayout {
         badge.getElement().getThemeList().add("badge");
         
         switch (user.getRole()) {
-            case SYSADMIN:
+            case ADMIN:
                 badge.getElement().getThemeList().add("error");
                 break;
-            case OPERATOR:
-                badge.getElement().getThemeList().add("contrast");
-                break;
-            case VIEWER:
+            case USER:
                 badge.getElement().getThemeList().add("success");
+                break;
+            default:
+                badge.getElement().getThemeList().add("contrast");
                 break;
         }
         
@@ -233,18 +266,13 @@ public class UserManagementView extends VerticalLayout {
                     if (user.isActive()) {
                         authService.deactivateUser(user.getId());
                     } else {
-                        // Reactivate user (you'll need to add this method to AuthService)
-                        User updatedUser = authService.getCurrentUser().orElse(null);
-                        if (updatedUser != null) {
-                            user.setActive(true);
-                            // You might want to add a reactivateUser method to AuthService
-                        }
+                        authService.activateUser(user.getId()); // Usar método que agregamos
                     }
                     
                     refreshUserGrid();
                     
                     Notification notification = Notification.show(
-                        "Usuario " + (user.isActive() ? "desactivado" : "activado") + " exitosamente"
+                        "Usuario " + action + "do exitosamente"
                     );
                     notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                 } catch (Exception e) {
@@ -267,15 +295,6 @@ public class UserManagementView extends VerticalLayout {
     }
 
     private String getRoleDisplayName(UserRole role) {
-        switch (role) {
-            case SYSADMIN:
-                return "Administrador del Sistema";
-            case OPERATOR:
-                return "Operador";
-            case VIEWER:
-                return "Visualizador";
-            default:
-                return "Desconocido";
-        }
+        return role.getDisplayName(); // Usar el método del enum
     }
 }
