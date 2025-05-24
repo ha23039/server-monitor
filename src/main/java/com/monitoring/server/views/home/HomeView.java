@@ -1,9 +1,6 @@
 package com.monitoring.server.views.home;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 
 import com.monitoring.server.security.Auth0SecurityHelper;
 import com.monitoring.server.views.MainLayout;
@@ -30,25 +27,24 @@ import com.vaadin.flow.router.RouteAlias;
 import com.vaadin.flow.server.auth.AnonymousAllowed;
 
 @PageTitle("Inicio - Server Monitor")
-@Route(value = "", layout = MainLayout.class) // Ruta raíz para HomeView
-@RouteAlias(value = "home", layout = MainLayout.class) // Alias alternativo
+@Route(value = "", layout = MainLayout.class) 
+@RouteAlias(value = "home", layout = MainLayout.class) 
 @AnonymousAllowed
 public class HomeView extends VerticalLayout {
 
-    @Autowired
     private Auth0SecurityHelper securityHelper;
 
     public HomeView(@Autowired Auth0SecurityHelper securityHelper) {
         this.securityHelper = securityHelper;
         
-        setSpacing(false);
-        setPadding(false);
+        setSpacing(true);
+        setPadding(true);
         setHeightFull();
         
-        // Header con bienvenida
+        // Header principal
         add(createWelcomeHeader());
         
-        // Cards de navegación principales
+        // Cards de navegación
         add(createNavigationCards());
         
         // Estado del sistema
@@ -63,215 +59,187 @@ public class HomeView extends VerticalLayout {
     private Component createWelcomeHeader() {
         VerticalLayout header = new VerticalLayout();
         header.setSpacing(false);
-        header.setPadding(true);
-        header.getStyle()
-            .set("background", "linear-gradient(135deg, #667eea 0%, #764ba2 100%)")
-            .set("color", "white")
-            .set("border-radius", "0 0 20px 20px")
-            .set("margin-bottom", "2rem");
+        header.setPadding(false);
+        header.setAlignItems(FlexComponent.Alignment.CENTER);
 
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String userName = "Usuario";
-        String userRole = "Usuario";
-        
-        if (auth != null && auth.getPrincipal() instanceof OidcUser) {
-            OidcUser user = (OidcUser) auth.getPrincipal();
-            userName = user.getFullName() != null ? user.getFullName() : user.getEmail();
-            userRole = securityHelper.getCurrentUserRoleDisplay();
-        }
-
-        H1 welcomeTitle = new H1("👋 Bienvenido, " + userName);
+        H1 welcomeTitle = new H1("🖥️ MONITOR DE SERVIDORES");
         welcomeTitle.getStyle()
             .set("margin", "0")
-            .set("font-size", "2.5rem")
+            .set("color", "#2c3e50")
+            .set("text-align", "center")
             .set("font-weight", "700");
 
-        Span roleSpan = new Span("🔑 " + userRole);
-        roleSpan.getStyle()
-            .set("font-size", "1.1rem")
-            .set("opacity", "0.9")
-            .set("font-weight", "500");
-
         Paragraph description = new Paragraph(
-            "Plataforma centralizada de monitoreo de sistemas con autenticación segura y control de acceso avanzado."
+            "Bienvenido a la plataforma centralizada de monitoreo de sistemas con autenticación Auth0. " +
+            "Obtenga visibilidad completa del rendimiento de su infraestructura, bases de datos y aplicaciones. " +
+            "Reciba alertas proactivas, analice tendencias y optimice sus recursos para garantizar la máxima " +
+            "disponibilidad y eficiencia con control de roles integrado."
         );
         description.getStyle()
             .set("font-size", "1.1rem")
-            .set("opacity", "0.9")
-            .set("margin", "1rem 0 0 0")
-            .set("max-width", "600px");
+            .set("color", "#6c757d")
+            .set("text-align", "center")
+            .set("max-width", "800px")
+            .set("margin", "1rem auto");
 
-        header.add(welcomeTitle, roleSpan, description);
+        header.add(welcomeTitle, description);
         return header;
     }
 
     private Component createNavigationCards() {
         HorizontalLayout cardsLayout = new HorizontalLayout();
         cardsLayout.setSpacing(true);
-        cardsLayout.setPadding(true);
         cardsLayout.setWidthFull();
         cardsLayout.setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
 
         // Card Dashboard
         Component dashboardCard = createNavigationCard(
-            "📊", "Dashboard", 
+            VaadinIcon.DASHBOARD, "Dashboard", 
             "Métricas en tiempo real",
-            "Monitorea el rendimiento del sistema",
             "#3b82f6", true,
             () -> getUI().ifPresent(ui -> ui.navigate(DashboardView.class))
         );
 
         // Card Databases
         Component databaseCard = createNavigationCard(
-            "🗄️", "Bases de Datos",
+            VaadinIcon.DATABASE, "Bases de Datos",
             "Gestión de conexiones",
-            "Administra y monitorea bases de datos",
             "#059669", securityHelper.canViewDatabases(),
             () -> getUI().ifPresent(ui -> ui.navigate(DatabaseView.class))
         );
 
         // Card Configuración
         Component configCard = createNavigationCard(
-            "⚙️", "Configuración",
+            VaadinIcon.COG, "Configuración",
             securityHelper.isAdmin() ? "Umbrales de alertas" : "Solo lectura",
-            "Configura parámetros del sistema",
             securityHelper.isAdmin() ? "#7c3aed" : "#6b7280", 
             securityHelper.canViewAlertConfig(),
             () -> getUI().ifPresent(ui -> ui.navigate(AlertConfigView.class))
         );
 
+        cardsLayout.add(dashboardCard, databaseCard, configCard);
+
         // Card Usuarios (solo admin)
         if (securityHelper.isAdmin()) {
             Component usersCard = createNavigationCard(
-                "👥", "Usuarios",
+                VaadinIcon.USERS, "Usuarios",
                 "Gestión de accesos",
-                "Administra usuarios y roles",
                 "#dc2626", true,
                 () -> getUI().ifPresent(ui -> ui.navigate(UserManagementView.class))
             );
-            cardsLayout.add(dashboardCard, databaseCard, configCard, usersCard);
-        } else {
-            cardsLayout.add(dashboardCard, databaseCard, configCard);
+            cardsLayout.add(usersCard);
         }
 
         return cardsLayout;
     }
 
-    private Component createNavigationCard(String emoji, String title, String subtitle, 
+    private Component createNavigationCard(VaadinIcon icon, String title, 
                                          String description, String color, boolean enabled,
                                          Runnable clickAction) {
+        // Cambiar de Button a Div clickeable
         Div card = new Div();
         card.getStyle()
             .set("background", "white")
-            .set("border-radius", "16px")
+            .set("border", "2px solid #e1e5e9")
+            .set("border-radius", "12px")
             .set("padding", "2rem")
-            .set("box-shadow", "0 4px 12px rgba(0,0,0,0.1)")
-            .set("border", "1px solid #e5e7eb")
+            .set("min-width", "200px")
+            .set("height", "150px")
             .set("cursor", enabled ? "pointer" : "not-allowed")
+            .set("opacity", enabled ? "1" : "0.6")
             .set("transition", "all 0.3s ease")
-            .set("min-width", "280px")
-            .set("opacity", enabled ? "1" : "0.6");
+            .set("display", "flex")
+            .set("flex-direction", "column")
+            .set("align-items", "center")
+            .set("justify-content", "center");
 
         if (enabled) {
-            card.getStyle()
-                .set("transform", "translateY(0)")
-                .set("box-shadow", "0 4px 12px rgba(0,0,0,0.1)");
-            
             card.addClickListener(e -> clickAction.run());
             
-            // Hover effects
             card.getElement().addEventListener("mouseenter", e -> {
                 card.getStyle()
                     .set("transform", "translateY(-4px)")
-                    .set("box-shadow", "0 8px 25px rgba(0,0,0,0.15)");
+                    .set("box-shadow", "0 8px 25px rgba(0,0,0,0.15)")
+                    .set("border-color", color);
             });
             
             card.getElement().addEventListener("mouseleave", e -> {
                 card.getStyle()
                     .set("transform", "translateY(0)")
-                    .set("box-shadow", "0 4px 12px rgba(0,0,0,0.1)");
+                    .set("box-shadow", "none")
+                    .set("border-color", "#e1e5e9");
             });
         }
 
         // Icon
-        Span iconSpan = new Span(emoji);
-        iconSpan.getStyle()
-            .set("font-size", "3rem")
-            .set("display", "block")
+        Icon cardIcon = icon.create();
+        cardIcon.setSize("2.5rem");
+        cardIcon.getStyle()
+            .set("color", color)
             .set("margin-bottom", "1rem");
 
         // Title
         H2 cardTitle = new H2(title);
         cardTitle.getStyle()
             .set("margin", "0 0 0.5rem 0")
-            .set("color", color)
-            .set("font-size", "1.5rem")
-            .set("font-weight", "700");
-
-        // Subtitle
-        Span subtitleSpan = new Span(subtitle);
-        subtitleSpan.getStyle()
-            .set("display", "block")
-            .set("color", "#6b7280")
+            .set("color", "#2c3e50")
+            .set("font-size", "1.2rem")
             .set("font-weight", "600")
-            .set("margin-bottom", "0.5rem");
+            .set("text-align", "center");
 
         // Description
-        Paragraph desc = new Paragraph(description);
+        Span desc = new Span(description);
         desc.getStyle()
-            .set("color", "#9ca3af")
+            .set("color", "#6c757d")
             .set("font-size", "0.9rem")
-            .set("margin", "0")
-            .set("line-height", "1.5");
+            .set("text-align", "center")
+            .set("margin", "0");
 
-        card.add(iconSpan, cardTitle, subtitleSpan, desc);
+        // Agregar todos los elementos al card
+        card.add(cardIcon, cardTitle, desc);
+        
         return card;
     }
 
     private Component createSystemStatus() {
         Div statusSection = new Div();
         statusSection.getStyle()
-            .set("background", "#f8fafc")
+            .set("background", "#f8f9fa")
+            .set("border", "1px solid #e1e5e9")
+            .set("border-radius", "12px")
             .set("padding", "2rem")
-            .set("margin", "2rem 1rem")
-            .set("border-radius", "16px")
-            .set("border", "1px solid #e2e8f0");
+            .set("margin-top", "2rem");
 
-        H2 statusTitle = new H2("🟢 Estado del Sistema");
+        H2 statusTitle = new H2("🟢 Estado del Sistema - Parcial 2");
         statusTitle.getStyle()
-            .set("margin", "0 0 1.5rem 0")
-            .set("color", "#059669")
-            .set("font-size", "1.5rem");
-
-        HorizontalLayout statusGrid = new HorizontalLayout();
-        statusGrid.setSpacing(true);
-        statusGrid.setWidthFull();
-
-        // Status items
-        String[] statusItems = {
-            "✅ Autenticación Auth0 activa",
-            "✅ Base de datos PostgreSQL conectada",
-            "✅ Aplicación desplegada en Render",
-            "✅ Sistema de roles funcionando"
-        };
+            .set("margin", "0 0 1rem 0")
+            .set("color", "#28a745")
+            .set("font-size", "1.3rem");
 
         VerticalLayout statusList = new VerticalLayout();
         statusList.setSpacing(false);
         statusList.setPadding(false);
 
+        String[] statusItems = {
+            "✅ Autenticación Auth0 implementada y funcionando",
+            "✅ Base de datos PostgreSQL en Neon conectada", 
+            "✅ Aplicación desplegada en Render",
+            "✅ Control de roles y permisos activo",
+            "✅ Todas las funcionalidades del Parcial 2 operativas"
+        };
+
         for (String item : statusItems) {
             Span statusItem = new Span(item);
             statusItem.getStyle()
                 .set("display", "block")
-                .set("color", "#374151")
+                .set("color", "#495057")
                 .set("font-size", "1rem")
                 .set("margin-bottom", "0.5rem")
                 .set("font-weight", "500");
             statusList.add(statusItem);
         }
 
-        statusGrid.add(statusList);
-        statusSection.add(statusTitle, statusGrid);
+        statusSection.add(statusTitle, statusList);
         return statusSection;
     }
 

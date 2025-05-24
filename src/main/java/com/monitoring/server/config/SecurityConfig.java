@@ -74,16 +74,19 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // Rutas públicas
                 .requestMatchers("/", "/login", "/oauth2/**", "/login/oauth2/**").permitAll()
-                // Rutas de Vaadin
+                // Rutas de Vaadin - IMPORTANTES PARA QUE FUNCIONE
                 .requestMatchers("/VAADIN/**", "/frontend/**", "/frontend-es6/**", "/frontend-es5/**").permitAll()
+                .requestMatchers("/sw.js", "/manifest.webmanifest", "/offline.html").permitAll()
+                .requestMatchers("/icons/**", "/images/**", "/styles/**", "/favicon.ico").permitAll()
                 // Actuator health check
                 .requestMatchers("/actuator/health").permitAll()
-                // Recursos estáticos
-                .requestMatchers("/icons/**", "/images/**", "/styles/**", "/favicon.ico").permitAll()
-                // Rutas protegidas - requieren autenticación
+                
+                // *** RUTAS DE LA APLICACIÓN - PERMITIR TODAS PARA USUARIOS AUTENTICADOS ***
                 .requestMatchers("/home/**", "/dashboard/**", "/databases/**", 
                                 "/config/**", "/users/**", "/configurations/**").authenticated()
-                // Todas las demás rutas requieren autenticación
+                
+                // *** TEMPORAL: Permitir acceso a todas las rutas autenticadas ***
+                // Esto es para debug - una vez que funcione, podemos agregar restricciones específicas
                 .anyRequest().authenticated()
             )
             .oauth2Login(oauth2 -> oauth2
@@ -119,15 +122,19 @@ public class SecurityConfig {
             // *** SINCRONIZAR USUARIO CON NUESTRA BASE DE DATOS ***
             try {
                 authService.createOrUpdateUser(oidcUser);
+                System.out.println("✅ Usuario sincronizado: " + oidcUser.getEmail() + " con roles: " + roles);
             } catch (Exception e) {
                 // Log error pero no interrumpir el login
-                System.err.println("Error sincronizando usuario: " + e.getMessage());
+                System.err.println("❌ Error sincronizando usuario: " + e.getMessage());
+                e.printStackTrace();
             }
             
             // Convertir roles a authorities
             List<SimpleGrantedAuthority> authorities = roles.stream()
                 .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
                 .collect(Collectors.toList());
+
+            System.out.println("✅ Authorities creadas: " + authorities);
 
             return new DefaultOidcUser(authorities, oidcUser.getIdToken(), oidcUser.getUserInfo());
         };
@@ -136,8 +143,10 @@ public class SecurityConfig {
     @Bean
     public AuthenticationSuccessHandler authenticationSuccessHandler() {
         return (request, response, authentication) -> {
+            System.out.println("✅ Login exitoso para: " + authentication.getName());
+            System.out.println("✅ Authorities: " + authentication.getAuthorities());
             // Redirigir después del login exitoso directamente al home
-            response.sendRedirect("/home");
+            response.sendRedirect("/");
         };
     }
 
@@ -157,29 +166,40 @@ public class SecurityConfig {
 
     @SuppressWarnings("unchecked")
     private Collection<String> extractRolesFromClaims(Map<String, Object> claims) {
+        System.out.println("🔍 Claims disponibles: " + claims.keySet());
+        
         // Auth0 custom claim namespace (debe coincidir con el Action)
         String rolesKey = "https://servermonitor.api/roles";
         
         Object rolesObj = claims.get(rolesKey);
         if (rolesObj instanceof Collection) {
-            return (Collection<String>) rolesObj;
+            Collection<String> roles = (Collection<String>) rolesObj;
+            System.out.println("✅ Roles extraídos del namespace custom: " + roles);
+            return roles;
         } else if (rolesObj instanceof String) {
-            return List.of((String) rolesObj);
+            List<String> roles = List.of((String) rolesObj);
+            System.out.println("✅ Rol extraído como string: " + roles);
+            return roles;
         }
         
         // Fallback: buscar en otros claims comunes
         Object authoritiesObj = claims.get("authorities");
         if (authoritiesObj instanceof Collection) {
-            return (Collection<String>) authoritiesObj;
+            Collection<String> roles = (Collection<String>) authoritiesObj;
+            System.out.println("✅ Roles extraídos de authorities: " + roles);
+            return roles;
         }
         
         // Fallback: buscar roles directamente
         Object directRoles = claims.get("roles");
         if (directRoles instanceof Collection) {
-            return (Collection<String>) directRoles;
+            Collection<String> roles = (Collection<String>) directRoles;
+            System.out.println("✅ Roles extraídos directamente: " + roles);
+            return roles;
         }
         
         // Si no encuentra roles, asignar rol USER por defecto
+        System.out.println("⚠️ No se encontraron roles, asignando 'user' por defecto");
         return List.of("user");
     }
 }
