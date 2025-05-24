@@ -76,8 +76,15 @@ public class SecurityConfig {
                 .requestMatchers("/", "/login", "/oauth2/**", "/login/oauth2/**").permitAll()
                 // Rutas de Vaadin
                 .requestMatchers("/VAADIN/**", "/frontend/**", "/frontend-es6/**", "/frontend-es5/**").permitAll()
-                // TEMPORALMENTE: permitir todas las rutas autenticadas
-                .anyRequest().permitAll()
+                // Actuator health check
+                .requestMatchers("/actuator/health").permitAll()
+                // Recursos estáticos
+                .requestMatchers("/icons/**", "/images/**", "/styles/**", "/favicon.ico").permitAll()
+                // Rutas protegidas - requieren autenticación
+                .requestMatchers("/home/**", "/dashboard/**", "/databases/**", 
+                                "/config/**", "/users/**", "/configurations/**").authenticated()
+                // Todas las demás rutas requieren autenticación
+                .anyRequest().authenticated()
             )
             .oauth2Login(oauth2 -> oauth2
                 .loginPage("/login")

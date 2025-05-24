@@ -3,236 +3,250 @@ package com.monitoring.server.views;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import com.monitoring.server.security.Auth0SecurityHelper;
-import com.monitoring.server.views.configurations.ConfigurationsView;
+import com.monitoring.server.views.config.AlertConfigView;
 import com.monitoring.server.views.dashboard.DashboardView;
+import com.monitoring.server.views.databases.DatabaseView;
 import com.monitoring.server.views.home.HomeView;
+import com.monitoring.server.views.users.UserManagementView;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.applayout.AppLayout;
 import com.vaadin.flow.component.applayout.DrawerToggle;
+import com.vaadin.flow.component.avatar.Avatar;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.Div;
+import com.vaadin.flow.component.html.Footer;
 import com.vaadin.flow.component.html.H1;
+import com.vaadin.flow.component.html.Header;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
+import com.vaadin.flow.component.orderedlayout.Scroller;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
-import com.vaadin.flow.component.tabs.Tab;
-import com.vaadin.flow.component.tabs.Tabs;
-import com.vaadin.flow.router.RouterLink;
+import com.vaadin.flow.component.sidenav.SideNav;
+import com.vaadin.flow.component.sidenav.SideNavItem;
+import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 
 /**
- * Layout principal con integración Auth0
+ * MainLayout moderno para la aplicación Server Monitor
  */
 public class MainLayout extends AppLayout {
 
     @Autowired
-    private Auth0SecurityHelper auth0SecurityHelper;
+    private Auth0SecurityHelper securityHelper;
 
-    public MainLayout(@Autowired Auth0SecurityHelper auth0SecurityHelper) {
-        this.auth0SecurityHelper = auth0SecurityHelper;
-        createHeader();
-        createDrawer();
+    private H1 viewTitle;
+
+    public MainLayout(@Autowired Auth0SecurityHelper securityHelper) {
+        this.securityHelper = securityHelper;
+        
+        setPrimarySection(Section.DRAWER);
+        addDrawerContent();
+        addHeaderContent();
     }
 
-    private void createHeader() {
-        H1 logo = new H1("🖥️ Server Monitor");
-        logo.addClassNames(
-            LumoUtility.FontSize.LARGE,
-            LumoUtility.Margin.MEDIUM
-        );
-        logo.getStyle().set("color", "#1976d2");
-
+    private void addHeaderContent() {
         DrawerToggle toggle = new DrawerToggle();
+        toggle.setAriaLabel("Menu toggle");
+        toggle.getStyle()
+            .set("color", "white");
 
-        // Sección de usuario
+        viewTitle = new H1();
+        viewTitle.addClassNames(LumoUtility.FontSize.LARGE, LumoUtility.Margin.NONE);
+        viewTitle.getStyle()
+            .set("color", "white")
+            .set("font-weight", "600");
+
+        // User info and logout
         HorizontalLayout userSection = createUserSection();
 
-        HorizontalLayout header = new HorizontalLayout(toggle, logo);
-        header.setFlexGrow(1, logo);
-        header.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
-        header.setAlignItems(FlexComponent.Alignment.CENTER);
-        header.setWidth("100%");
-        header.getStyle()
-            .set("background", "var(--lumo-base-color)")
-            .set("box-shadow", "0 1px 3px rgba(0,0,0,0.12)");
+        HorizontalLayout header = new HorizontalLayout(toggle, viewTitle);
+        header.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
+        header.setFlexGrow(1, viewTitle);
+        header.setWidthFull();
+        header.addClassNames(LumoUtility.Padding.Vertical.NONE, LumoUtility.Padding.Horizontal.MEDIUM);
 
-        addToNavbar(header, userSection);
+        // Header container with gradient
+        Div headerContainer = new Div();
+        headerContainer.getStyle()
+            .set("background", "linear-gradient(135deg, #667eea 0%, #764ba2 100%)")
+            .set("padding", "0.75rem 1rem")
+            .set("box-shadow", "0 2px 8px rgba(0,0,0,0.1)");
+
+        HorizontalLayout fullHeader = new HorizontalLayout(header, userSection);
+        fullHeader.setWidthFull();
+        fullHeader.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
+        fullHeader.setAlignItems(FlexComponent.Alignment.CENTER);
+
+        headerContainer.add(fullHeader);
+        addToNavbar(headerContainer);
     }
 
     private HorizontalLayout createUserSection() {
         HorizontalLayout userSection = new HorizontalLayout();
-        userSection.setAlignItems(FlexComponent.Alignment.CENTER);
         userSection.setSpacing(true);
-        userSection.getStyle().set("margin-right", "1rem");
+        userSection.setAlignItems(FlexComponent.Alignment.CENTER);
 
-        if (auth0SecurityHelper.isAuthenticated()) {
-            // Info del usuario
-            VerticalLayout userInfo = new VerticalLayout();
-            userInfo.setSpacing(false);
-            userInfo.setPadding(false);
-            userInfo.getStyle().set("margin-right", "1rem");
+        // User avatar and info
+        Avatar avatar = new Avatar(securityHelper.getCurrentUserName());
+        avatar.getStyle()
+            .set("background", "rgba(255,255,255,0.2)")
+            .set("color", "white");
 
-            Span userName = new Span(auth0SecurityHelper.getCurrentUserName());
-            userName.getStyle()
-                .set("font-weight", "bold")
-                .set("color", "#1976d2");
+        VerticalLayout userInfo = new VerticalLayout();
+        userInfo.setSpacing(false);
+        userInfo.setPadding(false);
 
-            Span userRole = new Span("🔑 " + auth0SecurityHelper.getCurrentUserRoleDisplay());
-            userRole.getStyle()
-                .set("font-size", "0.8rem")
-                .set("color", "var(--lumo-secondary-text-color)");
+        Span userName = new Span(securityHelper.getCurrentUserName());
+        userName.getStyle()
+            .set("color", "white")
+            .set("font-weight", "600")
+            .set("font-size", "0.9rem");
 
-            userInfo.add(userName, userRole);
+        Span userRole = new Span(securityHelper.getCurrentUserRoleDisplay());
+        userRole.getStyle()
+            .set("color", "rgba(255,255,255,0.8)")
+            .set("font-size", "0.75rem");
 
-            // Botón de logout
-            Button logoutButton = new Button("Cerrar Sesión", VaadinIcon.SIGN_OUT.create());
-            logoutButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_SMALL);
-            logoutButton.addClickListener(e -> {
-                getUI().ifPresent(ui -> ui.getPage().setLocation("/logout"));
-            });
+        userInfo.add(userName, userRole);
 
-            userSection.add(userInfo, logoutButton);
-        } else {
-            Button loginButton = new Button("Iniciar Sesión", VaadinIcon.SIGN_IN.create());
-            loginButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_SMALL);
-            loginButton.addClickListener(e -> {
-                getUI().ifPresent(ui -> ui.navigate("login"));
-            });
-            userSection.add(loginButton);
-        }
+        // Logout button
+        Button logoutButton = new Button(new Icon(VaadinIcon.SIGN_OUT));
+        logoutButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        logoutButton.getStyle()
+            .set("color", "white")
+            .set("background", "rgba(255,255,255,0.1)")
+            .set("border-radius", "8px");
+        logoutButton.addClickListener(e -> 
+            getUI().ifPresent(ui -> ui.getPage().setLocation("/logout"))
+        );
 
+        userSection.add(avatar, userInfo, logoutButton);
         return userSection;
     }
 
-    private void createDrawer() {
-        VerticalLayout drawerContent = new VerticalLayout();
-        drawerContent.setPadding(false);
-        drawerContent.setSpacing(false);
-        drawerContent.getStyle()
-            .set("background", "linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%)")
-            .set("height", "100%");
+    private void addDrawerContent() {
+        Div logoSection = createLogoSection();
+        SideNav navigation = createNavigation();
+        Footer footer = createFooter();
 
-        // Header del drawer
-        Div drawerHeader = new Div();
-        drawerHeader.getStyle()
-            .set("padding", "1rem")
-            .set("background", "#1976d2")
-            .set("color", "white")
-            .set("text-align", "center");
-        
-        Span headerText = new Span("📊 Panel de Control");
-        headerText.getStyle().set("font-weight", "bold");
-        drawerHeader.add(headerText);
+        VerticalLayout drawerLayout = new VerticalLayout();
+        drawerLayout.setSizeFull();
+        drawerLayout.setPadding(false);
+        drawerLayout.setSpacing(false);
 
-        // Tabs de navegación
-        Tabs tabs = new Tabs();
-        tabs.setOrientation(Tabs.Orientation.VERTICAL);
-        tabs.addClassNames(LumoUtility.Width.FULL);
-        tabs.getStyle().set("background", "transparent");
+        Scroller scroller = new Scroller(navigation);
+        scroller.setScrollDirection(Scroller.ScrollDirection.VERTICAL);
 
-        // Agregar tabs según permisos
-        if (auth0SecurityHelper.canAccessDashboard()) {
-            tabs.add(createTab(HomeView.class, VaadinIcon.HOME, "🏠 Home"));
-            tabs.add(createTab(DashboardView.class, VaadinIcon.DASHBOARD, "📊 Dashboard"));
-        }
+        drawerLayout.add(logoSection, scroller, footer);
+        drawerLayout.setFlexGrow(1, scroller);
 
-        // Configuración - admin puede editar, usuarios solo ver
-        if (auth0SecurityHelper.canConfigureAlerts()) {
-            tabs.add(createTab(ConfigurationsView.class, VaadinIcon.COG, "⚙️ Configuración"));
-        } else if (auth0SecurityHelper.canViewAlertConfig()) {
-            tabs.add(createTab(ConfigurationsView.class, VaadinIcon.COG, "👁️ Configuración (Ver)"));
-        }
-
-        drawerContent.add(drawerHeader, tabs);
-
-        // Indicador de rol en la parte inferior
-        if (auth0SecurityHelper.isAuthenticated()) {
-            Div roleIndicator = createRoleIndicator();
-            drawerContent.add(roleIndicator);
-        }
-
-        addToDrawer(drawerContent);
+        addToDrawer(drawerLayout);
     }
 
-    private Tab createTab(Class<? extends Component> viewClass, VaadinIcon viewIcon, String viewName) {
-        RouterLink link = new RouterLink(viewClass);
-        
-        Icon icon = viewIcon.create();
-        icon.setSize("18px");
-        
-        link.add(icon);
-        link.add(new Span(viewName));
-        link.getStyle()
-            .set("display", "flex")
-            .set("align-items", "center")
-            .set("gap", "0.5rem")
-            .set("padding", "0.75rem 1rem")
-            .set("text-decoration", "none")
-            .set("color", "#495057")
-            .set("border-radius", "8px")
-            .set("margin", "0.25rem");
-        
-        // Hover effect
-        link.getElement().addEventListener("mouseenter", e -> {
-            link.getStyle().set("background", "#e3f2fd");
-        });
-        
-        link.getElement().addEventListener("mouseleave", e -> {
-            link.getStyle().set("background", "transparent");
-        });
-        
-        Tab tab = new Tab(link);
-        tab.getStyle().set("background", "transparent");
-        return tab;
-    }
+    private Div createLogoSection() {
+        Div logoSection = new Div();
+        logoSection.getStyle()
+            .set("background", "linear-gradient(135deg, #667eea 0%, #764ba2 100%)")
+            .set("padding", "1.5rem 1rem")
+            .set("text-align", "center")
+            .set("color", "white");
 
-    private Div createRoleIndicator() {
-        Div roleIndicator = new Div();
-        roleIndicator.getStyle()
-            .set("padding", "1rem")
-            .set("margin-top", "auto")
-            .set("border-top", "1px solid #dee2e6")
-            .set("background", "rgba(255,255,255,0.8)");
+        Icon serverIcon = new Icon(VaadinIcon.SERVER);
+        serverIcon.setSize("2rem");
+        serverIcon.getStyle().set("margin-bottom", "0.5rem");
 
-        VerticalLayout roleInfo = new VerticalLayout();
-        roleInfo.setSpacing(false);
-        roleInfo.setPadding(false);
+        H1 appName = new H1("Server Monitor");
+        appName.getStyle()
+            .set("margin", "0")
+            .set("font-size", "1.3rem")
+            .set("font-weight", "700");
 
-        Span roleLabel = new Span("👤 Sesión Activa:");
-        roleLabel.getStyle()
+        Span subtitle = new Span("Sistema de Monitoreo");
+        subtitle.getStyle()
             .set("font-size", "0.8rem")
-            .set("color", "#6c757d")
-            .set("font-weight", "500");
+            .set("opacity", "0.9");
 
-        Span userName = new Span(auth0SecurityHelper.getCurrentUserName());
-        userName.getStyle()
-            .set("font-weight", "bold")
-            .set("color", "#1976d2");
-
-        Span roleName = new Span(auth0SecurityHelper.getCurrentUserRoleDisplay());
-        roleName.getStyle()
-            .set("font-size", "0.9rem")
-            .set("color", getRoleColor(auth0SecurityHelper.getCurrentUserRoleDisplay()))
-            .set("font-weight", "600");
-
-        roleInfo.add(roleLabel, userName, roleName);
-        roleIndicator.add(roleInfo);
-
-        return roleIndicator;
+        logoSection.add(serverIcon, appName, subtitle);
+        return logoSection;
     }
 
-    private String getRoleColor(String role) {
-        switch (role) {
-            case "Administrador":
-                return "#dc3545"; // Rojo para admin
-            case "Usuario":
-                return "#28a745"; // Verde para usuario
-            default:
-                return "#6c757d"; // Gris por defecto
+    private SideNav createNavigation() {
+        SideNav nav = new SideNav();
+        nav.getStyle()
+            .set("background", "white")
+            .set("padding", "1rem 0");
+
+        // Home
+        SideNavItem homeItem = new SideNavItem("Inicio", HomeView.class, VaadinIcon.HOME.create());
+        homeItem.getStyle().set("margin-bottom", "0.5rem");
+
+        // Dashboard
+        SideNavItem dashboardItem = new SideNavItem("Dashboard", DashboardView.class, VaadinIcon.DASHBOARD.create());
+        dashboardItem.getStyle().set("margin-bottom", "0.5rem");
+
+        // Databases
+        SideNavItem databasesItem = new SideNavItem("Bases de Datos", DatabaseView.class, VaadinIcon.DATABASE.create());
+        if (!securityHelper.canViewDatabases()) {
+            databasesItem.getStyle().set("opacity", "0.5");
         }
+        databasesItem.getStyle().set("margin-bottom", "0.5rem");
+
+        // Configuration
+        SideNavItem configItem = new SideNavItem("Configuración", AlertConfigView.class, VaadinIcon.COG.create());
+        if (!securityHelper.canViewAlertConfig()) {
+            configItem.getStyle().set("opacity", "0.5");
+        }
+        configItem.getStyle().set("margin-bottom", "0.5rem");
+
+        nav.addItem(homeItem);
+        nav.addItem(dashboardItem);
+        nav.addItem(databasesItem);
+        nav.addItem(configItem);
+
+        // Admin only items
+        if (securityHelper.isAdmin()) {
+            SideNavItem usersItem = new SideNavItem("Gestión de Usuarios", UserManagementView.class, VaadinIcon.USERS.create());
+            usersItem.getStyle().set("margin-bottom", "0.5rem");
+            nav.addItem(usersItem);
+        }
+
+        return nav;
+    }
+
+    private Footer createFooter() {
+        Footer footer = new Footer();
+        footer.getStyle()
+            .set("background", "#f8fafc")
+            .set("padding", "1rem")
+            .set("text-align", "center")
+            .set("border-top", "1px solid #e2e8f0")
+            .set("font-size", "0.8rem")
+            .set("color", "#6b7280");
+
+        Span footerText = new Span("Server Monitor v2.0");
+        Span roleIndicator = new Span("Rol: " + securityHelper.getCurrentUserRoleDisplay());
+        roleIndicator.getStyle()
+            .set("display", "block")
+            .set("font-weight", "600")
+            .set("color", securityHelper.isAdmin() ? "#dc2626" : "#059669")
+            .set("margin-top", "0.25rem");
+
+        footer.add(footerText, roleIndicator);
+        return footer;
+    }
+
+    @Override
+    protected void afterNavigation() {
+        super.afterNavigation();
+        viewTitle.setText(getCurrentPageTitle());
+    }
+
+    private String getCurrentPageTitle() {
+        PageTitle title = getContent().getClass().getAnnotation(PageTitle.class);
+        return title == null ? "Server Monitor" : title.value();
     }
 }
