@@ -47,12 +47,14 @@ public class VaadinSecurityConfig extends VaadinWebSecurity {
                 .requestMatchers("/logout").permitAll()
                 // Actuator health check
                 .requestMatchers("/actuator/health").permitAll()
+                // Permitir acceso a la página de login sin autenticación
+                .requestMatchers("/login").permitAll()
                 // Todas las demás rutas requieren autenticación
                 .anyRequest().authenticated()
             )
             .oauth2Login(oauth2 -> oauth2
                 .loginPage("/login")
-                .defaultSuccessUrl("/dashboard", true)
+                .defaultSuccessUrl("/", true)  // Redirigir al dashboard principal después del login
                 .failureUrl("/login?error=true")
             )
             .logout(logout -> logout
