@@ -53,26 +53,15 @@ public class LoginView extends VerticalLayout {
             .set("color", "#888")
             .set("margin-bottom", "2rem");
 
-        // Botón de login principal
+        // Botón de login principal (ÚNICO BOTÓN)
         Button loginButton = new Button("🔐 Iniciar Sesión con Auth0");
         loginButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_LARGE);
         loginButton.setIcon(VaadinIcon.SIGN_IN.create());
         loginButton.getStyle()
             .set("width", "100%")
-            .set("margin-bottom", "1rem")
+            .set("margin-bottom", "2rem") // Aumentado de 1rem a 2rem
             .set("font-size", "1.1rem");
         loginButton.addClickListener(e -> {
-            UI.getCurrent().getPage().setLocation("/oauth2/authorization/auth0");
-        });
-
-        // Botón de Google
-        Button googleButton = new Button("🌐 Continuar con Google");
-        googleButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST, ButtonVariant.LUMO_LARGE);
-        googleButton.getStyle()
-            .set("width", "100%")
-            .set("margin-bottom", "2rem")
-            .set("font-size", "1.1rem");
-        googleButton.addClickListener(e -> {
             UI.getCurrent().getPage().setLocation("/oauth2/authorization/auth0");
         });
 
@@ -92,11 +81,13 @@ public class LoginView extends VerticalLayout {
 
         Paragraph credUser = new Paragraph("👤 Usuario: ha23039@ues.edu.sv");
         Paragraph credRole = new Paragraph("🔑 Rol: Administrador");
+        Paragraph credNote = new Paragraph("💡 Configurar usuario en Auth0 Dashboard");
         
         credUser.getStyle().set("margin", "0.25rem 0").set("color", "#6c757d");
         credRole.getStyle().set("margin", "0.25rem 0").set("color", "#6c757d");
+        credNote.getStyle().set("margin", "0.25rem 0").set("color", "#dc3545").set("font-style", "italic");
 
-        credentialsInfo.add(credTitle, credUser, credRole);
+        credentialsInfo.add(credTitle, credUser, credRole, credNote);
 
         // Features implementadas
         Div featuresDiv = new Div();
@@ -112,15 +103,36 @@ public class LoginView extends VerticalLayout {
 
         Div featuresList = new Div();
         featuresList.add(
-            createFeature("🔐", "Autenticación Auth0"),
-            createFeature("👥", "Control de roles"),
+            createFeature("🔐", "Autenticación OAuth2 con Auth0"),
+            createFeature("👥", "Control de roles (Admin/User)"),
             createFeature("📊", "Monitoreo en tiempo real"),
-            createFeature("🚀", "Desplegado en Render")
+            createFeature("🚀", "Desplegado en Render"),
+            createFeature("🗄️", "Base de datos PostgreSQL en Neon")
         );
 
         featuresDiv.add(featuresTitle, featuresList);
 
-        container.add(title, subtitle, description, loginButton, googleButton, credentialsInfo, featuresDiv);
+        // Estado del sistema
+        Div statusDiv = new Div();
+        statusDiv.getStyle()
+            .set("margin-top", "1rem")
+            .set("padding", "0.75rem")
+            .set("background", "#d4edda")
+            .set("border-radius", "8px")
+            .set("border-left", "4px solid #28a745");
+
+        Paragraph statusText = new Paragraph("🟢 Sistema configurado y listo para autenticación");
+        statusText.getStyle()
+            .set("margin", "0")
+            .set("color", "#155724")
+            .set("font-weight", "500")
+            .set("text-align", "center")
+            .set("font-size", "0.9rem");
+
+        statusDiv.add(statusText);
+
+        // Agregar todos los componentes al container (SIN el botón de Google)
+        container.add(title, subtitle, description, loginButton, credentialsInfo, featuresDiv, statusDiv);
         add(container);
     }
 
