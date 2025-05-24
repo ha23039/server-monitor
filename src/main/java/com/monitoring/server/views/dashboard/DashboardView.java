@@ -35,6 +35,7 @@ import com.vaadin.flow.server.auth.AnonymousAllowed;
 @Route(value = "dashboard", layout = MainLayout.class) // RUTA ESPECÍFICA - NO CONFLICTO
 @PageTitle("Dashboard - Métricas en Tiempo Real")
 //@RequiresAuth // Require authentication for dashboard access
+@AnonymousAllowed
 public class DashboardView extends VerticalLayout {
 
     private final SystemMonitorService monitorService;

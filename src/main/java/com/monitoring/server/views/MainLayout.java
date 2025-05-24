@@ -115,10 +115,10 @@ public class MainLayout extends AppLayout {
         userInfoText.add(userNameSpan, userRoleSpan);
 
         Button logoutButton = new Button("Salir", VaadinIcon.SIGN_OUT_ALT.create());
-        logoutButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE, ButtonVariant.LUMO_ERROR); // Error para destacar más la salida
+        logoutButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE, ButtonVariant.LUMO_ERROR);
         logoutButton.getStyle().set("font-size", "var(--lumo-font-size-s)");
         logoutButton.addClickListener(e ->
-            getUI().ifPresent(ui -> ui.getPage().setLocation(securityHelper.getLogoutUrl())) // Usar helper para URL de logout
+            getUI().ifPresent(ui -> ui.getPage().setLocation("/logout"))
         );
 
         userSectionLayout.add(userInfoText, logoutButton);

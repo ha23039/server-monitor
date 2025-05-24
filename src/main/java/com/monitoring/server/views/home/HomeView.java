@@ -38,7 +38,7 @@ public class HomeView extends VerticalLayout {
     private static final String COLOR_DANGER = "#EF4444"; // Rojo para usuarios/peligro
     private static final String COLOR_TEXT_PRIMARY = "#1F2937"; // Gris oscuro para texto principal
     private static final String COLOR_TEXT_SECONDARY = "#6B7280"; // Gris medio para texto secundario
-    private static final String COLOR_BACKGROUND_LIGHT = "#F9FAFB"; // Gris muy claro para fondos
+    private static final String COLOR_BACKGROUND_LIGHT = "var(--lumo-contrast-5pct)"; // Gris muy claro para fondos
     private static final String COLOR_BORDER = "#E5E7EB"; // Gris claro para bordes
 
     public HomeView(@Autowired Auth0SecurityHelper securityHelper) {
@@ -49,8 +49,9 @@ public class HomeView extends VerticalLayout {
         setSizeFull();
         setDefaultHorizontalComponentAlignment(Alignment.CENTER); // Centra el contenido
         getStyle()
-            .set("background-color", COLOR_BACKGROUND_LIGHT)
-            .set("overflow-y", "auto"); // Para scroll si el contenido es largo
+        .set("background-color", "var(--lumo-contrast-5pct)")
+        .set("overflow-y", "auto"); // Para scroll si el contenido es largo
+        
 
         // Contenedor principal para aplicar max-width y padding
         VerticalLayout contentWrapper = new VerticalLayout();
