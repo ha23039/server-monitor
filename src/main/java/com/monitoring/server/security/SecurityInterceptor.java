@@ -1,5 +1,7 @@
 package com.monitoring.server.security;
 
+import java.util.Arrays;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -29,44 +31,33 @@ public class SecurityInterceptor implements VaadinServiceInitListener {
     }
 
     private void checkSecurity(BeforeEnterEvent event) {
-        Class<?> targetView = event.getNavigationTarget();
-        
-        // Verificar si el usuario está autenticado
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        boolean isAuthenticated = auth != null && auth.isAuthenticated() && 
-                                !"anonymousUser".equals(auth.getName());
-        
-        // Verificar anotaciones de seguridad
-        if (targetView.isAnnotationPresent(RequiresAuth.class) || 
-            targetView.isAnnotationPresent(RequiresViewer.class)) {
-            if (!isAuthenticated) {
-                event.rerouteTo("login");
-                return;
-            }
+    Class<?> targetView = event.getNavigationTarget();
+    
+    // DEBUG: Agregar logs
+    System.out.println("🔍 Navegando a: " + targetView.getSimpleName());
+    System.out.println("🔍 Anotaciones: " + Arrays.toString(targetView.getAnnotations()));
+    
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    boolean isAuthenticated = auth != null && auth.isAuthenticated() && 
+                            !"anonymousUser".equals(auth.getName());
+    
+    System.out.println("🔍 Usuario autenticado: " + isAuthenticated);
+    
+    if (targetView.isAnnotationPresent(RequiresOperator.class)) {
+        System.out.println("🔍 Vista requiere Operator");
+        if (!isAuthenticated) {
+            System.out.println("❌ Redirigiendo a login - no autenticado");
+            event.rerouteTo("login");
+            return;
         }
-        
-        if (targetView.isAnnotationPresent(RequiresOperator.class)) {
-            if (!isAuthenticated) {
-                event.rerouteTo("login");
-                return;
-            }
-            if (!hasRole("ROLE_admin") && !hasRole("ROLE_operator")) {
-                event.rerouteTo("access-denied");
-                return;
-            }
+        if (!hasRole("ROLE_admin") && !hasRole("ROLE_operator")) {
+            System.out.println("❌ Redirigiendo a access-denied - sin permisos");
+            event.rerouteTo("access-denied");
+            return;
         }
-        
-        if (targetView.isAnnotationPresent(RequiresAdmin.class)) {
-            if (!isAuthenticated) {
-                event.rerouteTo("login");
-                return;
-            }
-            if (!hasRole("ROLE_admin")) {
-                event.rerouteTo("access-denied");
-                return;
-            }
-        }
+        System.out.println("✅ Acceso permitido");
     }
+}
     
     private boolean hasRole(String role) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
