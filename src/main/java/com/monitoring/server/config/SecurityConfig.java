@@ -79,7 +79,7 @@ public class SecurityConfig {
                 // Rutas solo para administradores
                 .requestMatchers("/admin/**", "/users/**").hasAuthority("ROLE_admin")
                 // Rutas para usuarios autenticados (incluyendo home)
-                .requestMatchers("/home/**", "/dashboard/**", "/monitor/**", "/databases/**", "/config/**").hasAnyAuthority("ROLE_user", "ROLE_admin")
+                .requestMatchers("/home/**", "/home", "/dashboard/**", "/monitor/**", "/databases/**", "/config/**").hasAnyAuthority("ROLE_user", "ROLE_admin")
                 // Todas las demás rutas requieren autenticación
                 .anyRequest().authenticated()
             )

@@ -23,120 +23,143 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.Menu;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.server.auth.AnonymousAllowed;
 import com.vaadin.flow.theme.lumo.LumoUtility.Gap;
 
 @PageTitle("Home")
 @Route(value = "home", layout = MainLayout.class)
 @Menu(order = 0, icon = LineAwesomeIconUrl.PENCIL_RULER_SOLID)
+@AnonymousAllowed // ← TEMPORALMENTE para debug
 public class HomeView extends Composite<VerticalLayout> {
 
     public HomeView() {
-        // Mostrar notificación de login exitoso si es necesario
-        checkAndShowLoginSuccess();
-        
-        // Header con información del usuario
-        createUserHeader();
-        
-        // Layout principal
-        HorizontalLayout layoutRow = new HorizontalLayout();
-        Icon icon = new Icon();
-        H1 h1 = new H1();
-        VerticalLayout layoutColumn2 = new VerticalLayout();
-        Paragraph textLarge = new Paragraph();
-        HorizontalLayout layoutRow2 = new HorizontalLayout();
-        
-        // Botones con rutas de navegación
-        Button buttonPrimary = new Button("📊 Dashboard", VaadinIcon.DASHBOARD.create(), event -> 
-            getUI().ifPresent(ui -> ui.navigate(DashboardView.class))
-        );
-        
-        Button buttonPrimary2 = new Button("🗄️ Databases", VaadinIcon.DATABASE.create(), event -> 
-            getUI().ifPresent(ui -> ui.navigate(DatabaseView.class))
-        );
-        
-        Button buttonPrimary3 = new Button("⚙️ Configuración", VaadinIcon.COG.create(), event -> 
-            getUI().ifPresent(ui -> ui.navigate(AlertConfigView.class))
-        );
+        try {
+            // Debug: verificar autenticación
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            System.out.println("=== DEBUG HOME VIEW ===");
+            System.out.println("Authentication: " + (auth != null ? "EXISTS" : "NULL"));
+            if (auth != null) {
+                System.out.println("Principal type: " + auth.getPrincipal().getClass().getSimpleName());
+                System.out.println("Authorities: " + auth.getAuthorities());
+                System.out.println("Is authenticated: " + auth.isAuthenticated());
+            }
+            
+            // Mostrar notificación de login exitoso si es necesario
+            checkAndShowLoginSuccess();
+            
+            // Header con información del usuario
+            createUserHeader();
+            
+            // Layout principal
+            HorizontalLayout layoutRow = new HorizontalLayout();
+            Icon icon = new Icon();
+            H1 h1 = new H1();
+            VerticalLayout layoutColumn2 = new VerticalLayout();
+            Paragraph textLarge = new Paragraph();
+            HorizontalLayout layoutRow2 = new HorizontalLayout();
+            
+            // Botones con rutas de navegación
+            Button buttonPrimary = new Button("📊 Dashboard", VaadinIcon.DASHBOARD.create(), event -> 
+                getUI().ifPresent(ui -> ui.navigate(DashboardView.class))
+            );
+            
+            Button buttonPrimary2 = new Button("🗄️ Databases", VaadinIcon.DATABASE.create(), event -> 
+                getUI().ifPresent(ui -> ui.navigate(DatabaseView.class))
+            );
+            
+            Button buttonPrimary3 = new Button("⚙️ Configuración", VaadinIcon.COG.create(), event -> 
+                getUI().ifPresent(ui -> ui.navigate(AlertConfigView.class))
+            );
 
-        // Configuración del layout
-        getContent().setWidth("100%");
-        getContent().getStyle().set("flex-grow", "1");
-        layoutRow.setWidthFull();
-        getContent().setFlexGrow(1.0, layoutRow);
-        layoutRow.addClassName(Gap.MEDIUM);
-        layoutRow.setWidth("100%");
-        layoutRow.setHeight("50px");
-        
-        icon.setIcon("lumo:user");
-        icon.setSize("50px");
-        
-        h1.setText("🖥️ MONITOR DE SERVIDORES");
-        h1.setWidth("max-content");
-        h1.getStyle().set("color", "#2c3e50");
-        
-        layoutColumn2.setWidthFull();
-        getContent().setFlexGrow(1.0, layoutColumn2);
-        layoutColumn2.setWidth("100%");
-        layoutColumn2.getStyle().set("flex-grow", "1");
-        
-        textLarge.setText(
-                "Bienvenido a la plataforma centralizada de monitoreo de sistemas con autenticación Auth0. " +
-                "Obtenga visibilidad completa del rendimiento de su infraestructura, bases de datos y aplicaciones. " +
-                "Reciba alertas proactivas, analice tendencias y optimice sus recursos para garantizar la máxima " +
-                "disponibilidad y eficiencia con control de roles integrado.");
-        textLarge.setWidth("100%");
-        textLarge.getStyle().set("font-size", "var(--lumo-font-size-xl)");
-        
-        layoutRow2.setWidthFull();
-        layoutColumn2.setFlexGrow(1.0, layoutRow2);
-        layoutRow2.addClassName(Gap.MEDIUM);
-        layoutRow2.setWidth("100%");
-        layoutRow2.getStyle().set("flex-grow", "1");
-        
-        // Configuración de los botones con mejor estilo
-        buttonPrimary.setWidth("min-content");
-        buttonPrimary.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        buttonPrimary.getStyle().set("margin-right", "1rem");
-        
-        buttonPrimary2.setWidth("min-content");
-        buttonPrimary2.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
-        buttonPrimary2.getStyle().set("margin-right", "1rem");
-        
-        buttonPrimary3.setWidth("min-content");
-        buttonPrimary3.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
-        
-        // Control de acceso basado en roles
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getAuthorities().stream()
-                .noneMatch(a -> a.getAuthority().equals("ROLE_admin"))) {
-            // Si no es admin, deshabilitar botón de configuración
-            buttonPrimary3.setEnabled(false);
-            buttonPrimary3.setText("⚙️ Configuración (Solo Admin)");
+            // Configuración del layout
+            getContent().setWidth("100%");
+            getContent().getStyle().set("flex-grow", "1");
+            layoutRow.setWidthFull();
+            getContent().setFlexGrow(1.0, layoutRow);
+            layoutRow.addClassName(Gap.MEDIUM);
+            layoutRow.setWidth("100%");
+            layoutRow.setHeight("50px");
+            
+            icon.setIcon("lumo:user");
+            icon.setSize("50px");
+            
+            h1.setText("🖥️ MONITOR DE SERVIDORES");
+            h1.setWidth("max-content");
+            h1.getStyle().set("color", "#2c3e50");
+            
+            layoutColumn2.setWidthFull();
+            getContent().setFlexGrow(1.0, layoutColumn2);
+            layoutColumn2.setWidth("100%");
+            layoutColumn2.getStyle().set("flex-grow", "1");
+            
+            textLarge.setText(
+                    "Bienvenido a la plataforma centralizada de monitoreo de sistemas con autenticación Auth0. " +
+                    "Obtenga visibilidad completa del rendimiento de su infraestructura, bases de datos y aplicaciones. " +
+                    "Reciba alertas proactivas, analice tendencias y optimice sus recursos para garantizar la máxima " +
+                    "disponibilidad y eficiencia con control de roles integrado.");
+            textLarge.setWidth("100%");
+            textLarge.getStyle().set("font-size", "var(--lumo-font-size-xl)");
+            
+            layoutRow2.setWidthFull();
+            layoutColumn2.setFlexGrow(1.0, layoutRow2);
+            layoutRow2.addClassName(Gap.MEDIUM);
+            layoutRow2.setWidth("100%");
+            layoutRow2.getStyle().set("flex-grow", "1");
+            
+            // Configuración de los botones con mejor estilo
+            buttonPrimary.setWidth("min-content");
+            buttonPrimary.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
+            buttonPrimary.getStyle().set("margin-right", "1rem");
+            
+            buttonPrimary2.setWidth("min-content");
+            buttonPrimary2.addThemeVariants(ButtonVariant.LUMO_SUCCESS);
+            buttonPrimary2.getStyle().set("margin-right", "1rem");
+            
+            buttonPrimary3.setWidth("min-content");
+            buttonPrimary3.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
+            
+            // Control de acceso basado en roles
+            if (auth != null && auth.getAuthorities().stream()
+                    .noneMatch(a -> a.getAuthority().equals("ROLE_admin"))) {
+                // Si no es admin, deshabilitar botón de configuración
+                buttonPrimary3.setEnabled(false);
+                buttonPrimary3.setText("⚙️ Configuración (Solo Admin)");
+            }
+
+            // Añadir componentes al layout
+            getContent().add(layoutRow);
+            layoutRow.add(icon);
+            layoutRow.add(h1);
+            
+            getContent().add(layoutColumn2);
+            layoutColumn2.add(textLarge);
+            layoutColumn2.add(layoutRow2);
+            
+            layoutRow2.add(buttonPrimary);
+            layoutRow2.add(buttonPrimary2);
+            layoutRow2.add(buttonPrimary3);
+            
+            // Agregar información de estado del sistema
+            createSystemStatus();
+            
+            System.out.println("=== HOME VIEW LOADED SUCCESSFULLY ===");
+            
+        } catch (Exception e) {
+            System.err.println("ERROR in HomeView constructor: " + e.getMessage());
+            e.printStackTrace();
+            
+            // Vista de error simple
+            getContent().removeAll();
+            getContent().add(new H1("Error cargando Home"));
+            getContent().add(new Paragraph("Error: " + e.getMessage()));
         }
-
-        // Añadir componentes al layout
-        getContent().add(layoutRow);
-        layoutRow.add(icon);
-        layoutRow.add(h1);
-        
-        getContent().add(layoutColumn2);
-        layoutColumn2.add(textLarge);
-        layoutColumn2.add(layoutRow2);
-        
-        layoutRow2.add(buttonPrimary);
-        layoutRow2.add(buttonPrimary2);
-        layoutRow2.add(buttonPrimary3);
-        
-        // Agregar información de estado del sistema
-        createSystemStatus();
     }
 
     private void checkAndShowLoginSuccess() {
         // Opcional: Mostrar notificación de login exitoso
-        // Esto se puede implementar con Vaadin Notification si se desea
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.getPrincipal() instanceof OidcUser) {
-            // Login exitoso - la información se muestra en el header
+            System.out.println("LOGIN SUCCESS detected for user");
         }
     }
 
@@ -187,6 +210,12 @@ public class HomeView extends Composite<VerticalLayout> {
             headerLayout.add(userInfo, logoutBtn);
             userHeader.add(headerLayout);
             getContent().add(userHeader);
+        } else {
+            // Debug: usuario no autenticado
+            Div debugHeader = new Div();
+            debugHeader.getStyle().set("background", "#ffebee").set("padding", "1rem");
+            debugHeader.add(new Paragraph("⚠️ DEBUG: Usuario no autenticado detectado"));
+            getContent().add(debugHeader);
         }
     }
 

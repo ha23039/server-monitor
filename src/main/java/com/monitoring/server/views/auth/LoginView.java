@@ -8,7 +8,6 @@ import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Hr;
 import com.vaadin.flow.component.html.Paragraph;
-import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.Route;
@@ -24,7 +23,6 @@ public class LoginView extends VerticalLayout {
         setHeightFull();
         getStyle().set("background", "linear-gradient(135deg, #667eea 0%, #764ba2 100%)");
 
-        // Container principal
         Div container = new Div();
         container.getStyle()
             .set("background", "white")
@@ -32,142 +30,129 @@ public class LoginView extends VerticalLayout {
             .set("border-radius", "15px")
             .set("box-shadow", "0 10px 30px rgba(0,0,0,0.3)")
             .set("text-align", "center")
-            .set("max-width", "400px")
+            .set("max-width", "450px")
             .set("width", "100%");
 
         // Header
-        createHeader(container);
-        
-        // Botones de autenticación
-        createAuthButtons(container);
-        
-        // Información del sistema
-        createSystemInfo(container);
-
-        add(container);
-    }
-
-    private void createHeader(Div container) {
-        // Título principal
         H1 title = new H1("🖥️ Server Monitor");
         title.getStyle()
             .set("color", "#333")
             .set("margin-bottom", "0.5rem")
             .set("font-size", "2.2rem");
 
-        // Subtítulo
         H3 subtitle = new H3("Sistema de Monitoreo");
         subtitle.getStyle()
             .set("color", "#666")
-            .set("margin-bottom", "2rem")
-            .set("font-weight", "300")
-            .set("font-size", "1.1rem");
+            .set("margin-bottom", "1.5rem")
+            .set("font-weight", "300");
 
-        container.add(title, subtitle);
-    }
+        // Instrucciones claras
+        Paragraph instructions = new Paragraph("Inicia sesión o crea una cuenta nueva:");
+        instructions.getStyle()
+            .set("color", "#666")
+            .set("margin-bottom", "1.5rem")
+            .set("font-size", "1rem");
 
-    private void createAuthButtons(Div container) {
-        // Botón principal - Continuar con Google (estilo profesional)
-        Button googleButton = new Button("Continuar con Google");
-        
-        // Crear ícono de Google personalizado
-        Icon googleIcon = VaadinIcon.GLOBE.create();
-        googleIcon.setSize("16px");
-        googleButton.setIcon(googleIcon);
-        
-        googleButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_LARGE);
-        googleButton.getStyle()
+        // Botón principal
+        Button loginButton = new Button("Iniciar Sesión / Registrarse");
+        loginButton.setIcon(VaadinIcon.SIGN_IN.create());
+        loginButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_LARGE);
+        loginButton.getStyle()
             .set("width", "100%")
             .set("margin-bottom", "1rem")
             .set("font-size", "1rem")
-            .set("padding", "12px 24px");
+            .set("padding", "14px 24px");
         
-        googleButton.addClickListener(e -> {
+        loginButton.addClickListener(e -> {
             UI.getCurrent().getPage().setLocation("/oauth2/authorization/auth0");
         });
 
-        // Separador "O"
-        Div separatorDiv = new Div();
-        separatorDiv.getStyle()
-            .set("display", "flex")
-            .set("align-items", "center")
-            .set("margin", "1.5rem 0");
-
-        Hr leftLine = new Hr();
-        leftLine.getStyle().set("flex", "1").set("margin", "0 1rem 0 0");
-
-        Paragraph orText = new Paragraph("O");
-        orText.getStyle()
-            .set("margin", "0")
-            .set("color", "#6c757d")
-            .set("font-size", "0.9rem");
-
-        Hr rightLine = new Hr();
-        rightLine.getStyle().set("flex", "1").set("margin", "0 0 0 1rem");
-
-        separatorDiv.add(leftLine, orText, rightLine);
-
-        // Botón secundario - Iniciar Sesión (email/password)
-        Button emailButton = new Button("Iniciar Sesión");
-        emailButton.setIcon(VaadinIcon.SIGN_IN.create());
-        emailButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST, ButtonVariant.LUMO_LARGE);
-        emailButton.getStyle()
-            .set("width", "100%")
-            .set("margin-bottom", "1.5rem")
-            .set("font-size", "1rem")
-            .set("padding", "12px 24px");
-        
-        emailButton.addClickListener(e -> {
-            // Mismo endpoint pero Auth0 mostrará opción de email/password
-            UI.getCurrent().getPage().setLocation("/oauth2/authorization/auth0");
-        });
-
-        container.add(googleButton, separatorDiv, emailButton);
-    }
-
-    private void createSystemInfo(Div container) {
-        // Información del usuario de prueba (más discreta)
-        Div infoCard = new Div();
-        infoCard.getStyle()
+        // Explicación de opciones
+        Div optionsDiv = new Div();
+        optionsDiv.getStyle()
             .set("background", "#f8f9fa")
             .set("padding", "1rem")
             .set("border-radius", "8px")
-            .set("margin-top", "1rem")
-            .set("border-left", "3px solid #007bff");
+            .set("margin", "1rem 0")
+            .set("text-align", "left");
 
-        Paragraph infoTitle = new Paragraph("👤 Usuario de Prueba");
-        infoTitle.getStyle()
+        Paragraph optionsTitle = new Paragraph("🔹 Opciones disponibles:");
+        optionsTitle.getStyle()
             .set("font-weight", "600")
             .set("margin-bottom", "0.5rem")
-            .set("color", "#495057")
-            .set("font-size", "0.9rem");
+            .set("color", "#495057");
 
-        Paragraph infoText = new Paragraph("ha23039@ues.edu.sv");
-        infoText.getStyle()
+        Paragraph optionsList = new Paragraph(
+            "• Crear cuenta nueva con email y contraseña\n" +
+            "• Iniciar sesión con cuenta existente\n" +
+            "• Autenticarse con Google"
+        );
+        optionsList.getStyle()
             .set("margin", "0")
             .set("color", "#6c757d")
-            .set("font-size", "0.85rem");
+            .set("font-size", "0.9rem")
+            .set("white-space", "pre-line");
 
-        infoCard.add(infoTitle, infoText);
+        optionsDiv.add(optionsTitle, optionsList);
 
-        // Estado del sistema (compacto)
-        Div statusDiv = new Div();
-        statusDiv.getStyle()
-            .set("margin-top", "1rem")
-            .set("padding", "0.75rem")
-            .set("background", "#d4edda")
-            .set("border-radius", "6px")
-            .set("border-left", "3px solid #28a745");
+        // Separador
+        Hr separator = new Hr();
+        separator.getStyle().set("margin", "2rem 0 1rem 0");
 
-        Paragraph statusText = new Paragraph("🟢 Sistema configurado");
-        statusText.getStyle()
+        // Usuario de prueba
+        Div testUserDiv = new Div();
+        testUserDiv.getStyle()
+            .set("background", "#e7f3ff")
+            .set("padding", "1rem")
+            .set("border-radius", "8px")
+            .set("border-left", "3px solid #0066cc");
+
+        Paragraph testUserTitle = new Paragraph("👤 Usuario de Prueba Configurado");
+        testUserTitle.getStyle()
+            .set("font-weight", "600")
+            .set("margin-bottom", "0.5rem")
+            .set("color", "#0066cc");
+
+        Paragraph testUserInfo = new Paragraph("📧 ha23039@ues.edu.sv\n🔑 Rol: Administrador");
+        testUserInfo.getStyle()
             .set("margin", "0")
-            .set("color", "#155724")
+            .set("color", "#0066cc")
             .set("font-size", "0.85rem")
-            .set("text-align", "center");
+            .set("white-space", "pre-line");
 
-        statusDiv.add(statusText);
+        testUserDiv.add(testUserTitle, testUserInfo);
 
-        container.add(infoCard, statusDiv);
+        // Instrucciones de registro
+        Div registrationDiv = new Div();
+        registrationDiv.getStyle()
+            .set("background", "#fff3cd")
+            .set("padding", "1rem")
+            .set("border-radius", "8px")
+            .set("border-left", "3px solid #ffc107")
+            .set("margin-top", "1rem");
+
+        Paragraph registrationTitle = new Paragraph("📝 Para crear cuenta nueva:");
+        registrationTitle.getStyle()
+            .set("font-weight", "600")
+            .set("margin-bottom", "0.5rem")
+            .set("color", "#856404");
+
+        Paragraph registrationSteps = new Paragraph(
+            "1. Haz clic en 'Iniciar Sesión / Registrarse'\n" +
+            "2. En la pantalla de Auth0, busca el link 'Sign up'\n" +
+            "3. Llena el formulario con tu email y contraseña\n" +
+            "4. ¡Tu cuenta será creada automáticamente!"
+        );
+        registrationSteps.getStyle()
+            .set("margin", "0")
+            .set("color", "#856404")
+            .set("font-size", "0.85rem")
+            .set("white-space", "pre-line");
+
+        registrationDiv.add(registrationTitle, registrationSteps);
+
+        container.add(title, subtitle, instructions, loginButton, optionsDiv, 
+                     separator, testUserDiv, registrationDiv);
+        add(container);
     }
 }
