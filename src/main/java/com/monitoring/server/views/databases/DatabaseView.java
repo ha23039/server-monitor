@@ -24,16 +24,18 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
+import com.vaadin.flow.server.auth.AnonymousAllowed;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 
 /**
  * Vista para gestionar las bases de datos monitoreadas con seguridad basada en roles.
- * SYSADMIN: Acceso completo (CRUD)
+ * ADMIN: Acceso completo (CRUD)
  * OPERATOR: Solo lectura y prueba de conexiones
  */
 @PageTitle("Bases de Datos Monitoreadas")
 @Route(value = "databases", layout = MainLayout.class)
-@RequiresOperator // Requires OPERATOR or higher (SYSADMIN)
+//@RequiresOperator // Requires OPERATOR or higher (SYSADMIN)
+@AnonymousAllowed 
 public class DatabaseView extends VerticalLayout {
 
     private final DatabaseService databaseService;

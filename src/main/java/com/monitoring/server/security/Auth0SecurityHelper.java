@@ -5,6 +5,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.stereotype.Component;
 
+/**
+ * Auth0 Security Helper for Server Monitoring System
+ * Unified role system: admin, operator, viewer
+ */
 @Component
 public class Auth0SecurityHelper {
 
@@ -39,46 +43,114 @@ public class Auth0SecurityHelper {
             .anyMatch(authority -> authority.getAuthority().equals("ROLE_" + role));
     }
 
+    // ===== ROLES ESPECÍFICOS =====
+    
     public boolean isAdmin() {
         return hasRole("admin");
     }
 
-    public boolean isUser() {
-        return hasRole("user") || isAdmin();
+    public boolean isOperator() {
+        return hasRole("operator");
+    }
+
+    public boolean isViewer() {
+        return hasRole("viewer") || hasRole("user"); // "user" mapea a viewer
+    }
+
+    // ===== ROLES JERÁRQUICOS =====
+    
+    public boolean hasAdminPrivileges() {
+        return isAdmin();
+    }
+
+    public boolean hasOperatorPrivileges() {
+        return isAdmin() || isOperator();
+    }
+
+    public boolean hasViewerPrivileges() {
+        return isAdmin() || isOperator() || isViewer();
     }
 
     public String getCurrentUserRoleDisplay() {
         if (isAdmin()) {
-            return "Administrador";
-        } else if (isUser()) {
-            return "Usuario";
+            return "Administrador del Sistema";
+        } else if (isOperator()) {
+            return "Operador de Sistemas";
+        } else if (isViewer()) {
+            return "Visualizador";
         } else {
-            return "Sin Rol";
+            return "Sin Rol Asignado";
         }
     }
 
-    // Métodos de compatibilidad con su sistema existente
+    // ===== PERMISOS ESPECÍFICOS DEL SISTEMA DE MONITOREO =====
+
+    // Dashboard y Métricas
     public boolean canAccessDashboard() {
-        return isAuthenticated();
+        return hasViewerPrivileges();
+    }
+
+    public boolean canViewMetrics() {
+        return hasViewerPrivileges();
+    }
+
+    public boolean canExportMetrics() {
+        return hasOperatorPrivileges();
+    }
+
+    // Bases de Datos
+    public boolean canViewDatabases() {
+        return hasViewerPrivileges();
     }
 
     public boolean canManageDatabases() {
-        return isAdmin();
+        return hasOperatorPrivileges();
     }
 
-    public boolean canViewDatabases() {
-        return isAuthenticated();
+    public boolean canTestDatabaseConnections() {
+        return hasOperatorPrivileges();
+    }
+
+    // Alertas y Configuración
+    public boolean canViewAlertConfig() {
+        return hasViewerPrivileges();
     }
 
     public boolean canConfigureAlerts() {
-        return isAdmin();
+        return hasOperatorPrivileges();
     }
 
-    public boolean canViewAlertConfig() {
-        return isAuthenticated();
+    public boolean canAcknowledgeAlerts() {
+        return hasOperatorPrivileges();
     }
 
+    // Administración del Sistema
     public boolean canManageUsers() {
-        return isAdmin();
+        return hasAdminPrivileges();
+    }
+
+    public boolean canChangeSystemSettings() {
+        return hasAdminPrivileges();
+    }
+
+    public boolean canViewSystemLogs() {
+        return hasOperatorPrivileges();
+    }
+
+    public boolean canManageSystemServices() {
+        return hasAdminPrivileges();
+    }
+
+    // Monitoreo Avanzado
+    public boolean canCreateCustomDashboards() {
+        return hasOperatorPrivileges();
+    }
+
+    public boolean canScheduleReports() {
+        return hasOperatorPrivileges();
+    }
+
+    public boolean canManageMonitoringAgents() {
+        return hasAdminPrivileges();
     }
 }
