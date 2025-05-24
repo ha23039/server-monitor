@@ -3,6 +3,7 @@ package com.monitoring.server.views.home;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import com.monitoring.server.security.Auth0SecurityHelper;
+import com.monitoring.server.security.SecurityAnnotations.RequiresAuth;
 import com.monitoring.server.views.MainLayout;
 import com.monitoring.server.views.config.AlertConfigView;
 import com.monitoring.server.views.dashboard.DashboardView;
@@ -20,13 +21,14 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.router.RouteAlias;
-import com.vaadin.flow.server.auth.AnonymousAllowed;
 
 @PageTitle("Inicio - Server Monitor")
 @Route(value = "", layout = MainLayout.class)
 @RouteAlias(value = "home", layout = MainLayout.class)
-@AnonymousAllowed
+@RequiresAuth
 public class HomeView extends VerticalLayout {
+
+    
 
     private final Auth0SecurityHelper securityHelper;
 

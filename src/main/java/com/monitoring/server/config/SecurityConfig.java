@@ -28,7 +28,7 @@ import com.monitoring.server.service.impl.AuthService;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity
+@EnableMethodSecurity(prePostEnabled = true) // IMPORTANTE: Habilitar @PreAuthorize
 public class SecurityConfig {
 
     @Value("${auth0.domain}")
@@ -56,8 +56,10 @@ public class SecurityConfig {
                 .requestMatchers("/api/public/**", "/api/health/**").permitAll()
                 // Rutas solo para administradores (usando roles de Auth0)
                 .requestMatchers("/api/admin/**").hasAuthority("ROLE_admin")
-                // Rutas para usuarios autenticados
-                .requestMatchers("/api/user/**").hasAnyAuthority("ROLE_user", "ROLE_admin")
+                // Rutas para operators o admin
+                .requestMatchers("/api/operator/**").hasAnyAuthority("ROLE_admin", "ROLE_operator")
+                // Rutas para usuarios autenticados (cualquier rol)
+                .requestMatchers("/api/user/**").hasAnyAuthority("ROLE_admin", "ROLE_operator", "ROLE_viewer", "ROLE_user")
                 // Todas las demás rutas de API requieren autenticación
                 .anyRequest().authenticated()
             );
@@ -74,19 +76,18 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // Rutas públicas
                 .requestMatchers("/", "/login", "/oauth2/**", "/login/oauth2/**").permitAll()
+                .requestMatchers("/access-denied", "/error").permitAll()
+                
                 // Rutas de Vaadin - IMPORTANTES PARA QUE FUNCIONE
                 .requestMatchers("/VAADIN/**", "/frontend/**", "/frontend-es6/**", "/frontend-es5/**").permitAll()
                 .requestMatchers("/sw.js", "/manifest.webmanifest", "/offline.html").permitAll()
                 .requestMatchers("/icons/**", "/images/**", "/styles/**", "/favicon.ico").permitAll()
+                
                 // Actuator health check
                 .requestMatchers("/actuator/health").permitAll()
                 
-                // *** RUTAS DE LA APLICACIÓN - PERMITIR TODAS PARA USUARIOS AUTENTICADOS ***
-                .requestMatchers("/home/**", "/dashboard/**", "/databases/**", 
-                                "/config/**", "/users/**", "/configurations/**").authenticated()
-                
-                // *** TEMPORAL: Permitir acceso a todas las rutas autenticadas ***
-                // Esto es para debug - una vez que funcione, podemos agregar restricciones específicas
+                // *** IMPORTANTE: NO definir restricciones aquí para las vistas ***
+                // Las vistas usan @PreAuthorize en los métodos/clases, no URL-based security
                 .anyRequest().authenticated()
             )
             .oauth2Login(oauth2 -> oauth2
@@ -119,6 +120,8 @@ public class SecurityConfig {
             Map<String, Object> claims = oidcUser.getClaims();
             Collection<String> roles = extractRolesFromClaims(claims);
             
+            System.out.println("🔍 ROLES EXTRAÍDOS: " + roles);
+            
             // *** SINCRONIZAR USUARIO CON NUESTRA BASE DE DATOS ***
             try {
                 authService.createOrUpdateUser(oidcUser);
@@ -129,12 +132,16 @@ public class SecurityConfig {
                 e.printStackTrace();
             }
             
-            // Convertir roles a authorities
+            // Convertir roles a authorities con prefijo ROLE_
             List<SimpleGrantedAuthority> authorities = roles.stream()
-                .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                .map(role -> {
+                    // Asegurar que el rol tenga el prefijo ROLE_
+                    String roleWithPrefix = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+                    return new SimpleGrantedAuthority(roleWithPrefix);
+                })
                 .collect(Collectors.toList());
 
-            System.out.println("✅ Authorities creadas: " + authorities);
+            System.out.println("✅ AUTHORITIES CREADAS: " + authorities);
 
             return new DefaultOidcUser(authorities, oidcUser.getIdToken(), oidcUser.getUserInfo());
         };
@@ -143,8 +150,14 @@ public class SecurityConfig {
     @Bean
     public AuthenticationSuccessHandler authenticationSuccessHandler() {
         return (request, response, authentication) -> {
-            System.out.println("✅ Login exitoso para: " + authentication.getName());
-            System.out.println("✅ Authorities: " + authentication.getAuthorities());
+            System.out.println("🎉 LOGIN EXITOSO para: " + authentication.getName());
+            System.out.println("🔑 AUTHORITIES: " + authentication.getAuthorities());
+            
+            // Debug: Imprimir cada authority individualmente
+            authentication.getAuthorities().forEach(auth -> 
+                System.out.println("   🏷️  Authority: '" + auth.getAuthority() + "'")
+            );
+            
             // Redirigir después del login exitoso directamente al home
             response.sendRedirect("/");
         };
@@ -158,7 +171,11 @@ public class SecurityConfig {
             Collection<String> roles = extractRolesFromClaims(jwt.getClaims());
             
             return roles.stream()
-                .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                .map(role -> {
+                    // Asegurar que el rol tenga el prefijo ROLE_
+                    String roleWithPrefix = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+                    return new SimpleGrantedAuthority(roleWithPrefix);
+                })
                 .collect(Collectors.toList());
         });
         return converter;
@@ -166,7 +183,7 @@ public class SecurityConfig {
 
     @SuppressWarnings("unchecked")
     private Collection<String> extractRolesFromClaims(Map<String, Object> claims) {
-        System.out.println("🔍 Claims disponibles: " + claims.keySet());
+        System.out.println("🔍 TODOS LOS CLAIMS: " + claims);
         
         // Auth0 custom claim namespace (debe coincidir con el Action)
         String rolesKey = "https://servermonitor.api/roles";
@@ -198,8 +215,20 @@ public class SecurityConfig {
             return roles;
         }
         
-        // Si no encuentra roles, asignar rol USER por defecto
-        System.out.println("⚠️ No se encontraron roles, asignando 'user' por defecto");
-        return List.of("user");
+        // Fallback final: buscar en app_metadata (Auth0 estándar)
+        Object appMetadata = claims.get("https://servermonitor.api/app_metadata");
+        if (appMetadata instanceof Map) {
+            Map<String, Object> metadata = (Map<String, Object>) appMetadata;
+            Object metadataRoles = metadata.get("roles");
+            if (metadataRoles instanceof Collection) {
+                Collection<String> roles = (Collection<String>) metadataRoles;
+                System.out.println("✅ Roles extraídos de app_metadata: " + roles);
+                return roles;
+            }
+        }
+        
+        // Si no encuentra roles, asignar rol viewer por defecto
+        System.out.println("⚠️ No se encontraron roles, asignando 'viewer' por defecto");
+        return List.of("viewer");
     }
 }

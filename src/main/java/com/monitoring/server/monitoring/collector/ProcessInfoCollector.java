@@ -15,7 +15,8 @@ import com.monitoring.server.util.SystemCommandExecutor;
 
 /**
  * Recolector de información de procesos del sistema
- * Compatible con Windows y Linux
+ * Compatible con Windows, Linux completo y BusyBox (Docker)
+ * ARREGLADO: Compatible con tu estructura actual de ProcessInfo
  */
 @Component
 public class ProcessInfoCollector {
@@ -25,7 +26,7 @@ public class ProcessInfoCollector {
     @Autowired
     private SystemCommandExecutor commandExecutor;
     
-    private String osName = System.getProperty("os.name").toLowerCase();
+    private String osName = System.getProperty("os.name", "").toLowerCase();
     
     /**
      * Recolecta información de procesos del sistema
@@ -89,13 +90,103 @@ public class ProcessInfoCollector {
     
     /**
      * Recolecta información de procesos en Linux
+     * ARREGLADO: Maneja BusyBox correctamente
      */
     private List<ProcessInfo> collectLinuxProcesses() throws Exception {
         List<ProcessInfo> processes = new ArrayList<>();
         
-        // Comando para listar procesos con sus detalles
-        String command = "ps aux --sort=-%cpu";
+        // Detectar si estamos en BusyBox
+        boolean isBusyBox = detectBusyBox();
+        
+        String command;
+        if (isBusyBox) {
+            logger.info("🐧 Detectado BusyBox - usando comando ps simple");
+            // BusyBox: usar comando básico
+            command = "ps";
+        } else {
+            logger.info("🐧 Detectado Linux completo - usando comando ps avanzado");
+            // Linux completo
+            command = "ps aux --sort=-%cpu";
+        }
+        
         String output = commandExecutor.executeCommand(command);
+        
+        if (isBusyBox) {
+            return parseBusyBoxOutput(output);
+        } else {
+            return parseFullLinuxOutput(output);
+        }
+    }
+    
+    /**
+     * Detecta si estamos ejecutando en BusyBox
+     */
+    private boolean detectBusyBox() {
+        try {
+            String testCommand = "ps --version 2>&1 || echo 'busybox'";
+            String versionOutput = commandExecutor.executeCommand(testCommand);
+            boolean isBusyBox = versionOutput.toLowerCase().contains("busybox");
+            
+            if (isBusyBox) {
+                logger.info("✅ Detectado entorno BusyBox (Docker)");
+            } else {
+                logger.info("✅ Detectado Linux completo");
+            }
+            
+            return isBusyBox;
+        } catch (Exception e) {
+            logger.warn("⚠️ No se pudo detectar el tipo de ps, asumiendo BusyBox por seguridad");
+            return true;
+        }
+    }
+    
+    /**
+     * Parsea salida simple de BusyBox
+     */
+    private List<ProcessInfo> parseBusyBoxOutput(String output) {
+        List<ProcessInfo> processes = new ArrayList<>();
+        String[] lines = output.split("\n");
+        
+        // BusyBox ps output: PID USER TIME COMMAND
+        for (int i = 1; i < lines.length; i++) { // Saltar header
+            String line = lines[i].trim();
+            if (line.isEmpty()) continue;
+            
+            try {
+                // Parsear formato simple de BusyBox: PID USER TIME COMMAND
+                String[] parts = line.trim().split("\\s+", 4);
+                
+                if (parts.length >= 4) {
+                    String processId = parts[0];
+                    String username = parts[1];
+                    String processName = parts[3];
+                    
+                    // Truncar nombre si es muy largo
+                    if (processName.length() > 30) {
+                        processName = processName.substring(0, 27) + "...";
+                    }
+                    
+                    ProcessInfo process = new ProcessInfo(processId, processName, 0.0, 0.0);
+                    process.setUsername(username);
+                    process.setStatus("R"); // BusyBox no da estado detallado
+                    process.setDiskUsage(0.0);
+                    
+                    processes.add(process);
+                }
+            } catch (Exception e) {
+                logger.debug("Error parseando línea BusyBox: {}", line);
+            }
+        }
+        
+        logger.info("📊 Procesos recolectados con BusyBox: {}", processes.size());
+        return processes;
+    }
+    
+    /**
+     * Parsea salida completa de Linux ps aux
+     */
+    private List<ProcessInfo> parseFullLinuxOutput(String output) {
+        List<ProcessInfo> processes = new ArrayList<>();
         
         // Expresión regular para extraer los campos
         Pattern pattern = Pattern.compile(
@@ -134,7 +225,7 @@ public class ProcessInfoCollector {
                     ProcessInfo process = new ProcessInfo(processId, processName, cpuUsage, memoryUsage);
                     process.setUsername(username);
                     process.setStatus(status);
-                    process.setDiskUsage(0.0); // No es fácil obtener esto por proceso
+                    process.setDiskUsage(0.0);
                     
                     processes.add(process);
                 } catch (NumberFormatException e) {
@@ -144,6 +235,7 @@ public class ProcessInfoCollector {
             }
         }
         
+        logger.info("📊 Procesos recolectados con Linux completo: {}", processes.size());
         return processes;
     }
     

@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.vaadin.lineawesome.LineAwesomeIconUrl;
 
 import com.monitoring.server.security.Auth0SecurityHelper;
+import com.monitoring.server.security.SecurityAnnotations.RequiresOperator;
 import com.monitoring.server.views.MainLayout;
 import com.vaadin.flow.component.Composite;
 import com.vaadin.flow.component.button.Button;
@@ -26,6 +27,7 @@ import com.vaadin.flow.router.Route;
 import com.vaadin.flow.theme.lumo.LumoUtility.Gap;
 
 @PageTitle("Configurations")
+@RequiresOperator
 @Route(value = "configurations", layout = MainLayout.class)
 @Menu(order = 3, icon = LineAwesomeIconUrl.COG_SOLID)
 public class ConfigurationsView extends Composite<VerticalLayout> {

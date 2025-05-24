@@ -10,6 +10,7 @@ import com.monitoring.server.data.entity.AlertConfiguration;
 import com.monitoring.server.data.entity.ProcessInfo;
 import com.monitoring.server.data.entity.SystemMetric;
 import com.monitoring.server.security.SecurityAnnotations.RequiresAuth;
+import com.monitoring.server.security.SecurityAnnotations.RequiresViewer;
 import com.monitoring.server.service.interfaces.AlertConfigService;
 import com.monitoring.server.service.interfaces.ProcessInfoService;
 import com.monitoring.server.service.interfaces.SystemMonitorService;
@@ -35,7 +36,7 @@ import com.vaadin.flow.server.auth.AnonymousAllowed;
 @Route(value = "dashboard", layout = MainLayout.class) // RUTA ESPECÍFICA - NO CONFLICTO
 @PageTitle("Dashboard - Métricas en Tiempo Real")
 //@RequiresAuth // Require authentication for dashboard access
-@AnonymousAllowed
+@RequiresViewer
 public class DashboardView extends VerticalLayout {
 
     private final SystemMonitorService monitorService;

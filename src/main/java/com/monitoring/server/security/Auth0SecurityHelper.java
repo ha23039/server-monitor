@@ -7,7 +7,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * Auth0 Security Helper for Server Monitoring System
- * Unified role system: admin, operator, viewer
+ * Unified role system: admin, operator, viewer, user
+ * IMPORTANTE: Roles con prefijo ROLE_ para Spring Security
  */
 @Component
 public class Auth0SecurityHelper {
@@ -39,22 +40,39 @@ public class Auth0SecurityHelper {
 
     public boolean hasRole(String role) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        return auth != null && auth.getAuthorities().stream()
-            .anyMatch(authority -> authority.getAuthority().equals("ROLE_" + role));
+        if (auth == null) {
+            return false;
+        }
+        
+        // Asegurar que el rol tenga el prefijo ROLE_
+        String roleWithPrefix = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+        
+        boolean hasRole = auth.getAuthorities().stream()
+            .anyMatch(authority -> authority.getAuthority().equals(roleWithPrefix));
+        
+        // Debug logging
+        System.out.println("🔍 Verificando rol: " + roleWithPrefix + " = " + hasRole);
+        System.out.println("🔍 Authorities disponibles: " + auth.getAuthorities());
+        
+        return hasRole;
     }
 
     // ===== ROLES ESPECÍFICOS =====
     
     public boolean isAdmin() {
-        return hasRole("admin");
+        return hasRole("admin"); // Se convertirá a ROLE_admin internamente
     }
 
     public boolean isOperator() {
-        return hasRole("operator");
+        return hasRole("operator"); // Se convertirá a ROLE_operator internamente
     }
 
     public boolean isViewer() {
-        return hasRole("viewer") || hasRole("user"); // "user" mapea a viewer
+        return hasRole("viewer") || hasRole("user"); // viewer o user mapean a visualizador
+    }
+
+    public boolean isUser() {
+        return hasRole("user"); // Se convertirá a ROLE_user internamente
     }
 
     // ===== ROLES JERÁRQUICOS =====
@@ -68,7 +86,7 @@ public class Auth0SecurityHelper {
     }
 
     public boolean hasViewerPrivileges() {
-        return isAdmin() || isOperator() || isViewer();
+        return isAdmin() || isOperator() || isViewer() || isUser();
     }
 
     public String getCurrentUserRoleDisplay() {
@@ -78,6 +96,8 @@ public class Auth0SecurityHelper {
             return "Operador de Sistemas";
         } else if (isViewer()) {
             return "Visualizador";
+        } else if (isUser()) {
+            return "Usuario";
         } else {
             return "Sin Rol Asignado";
         }
@@ -154,8 +174,28 @@ public class Auth0SecurityHelper {
         return hasAdminPrivileges();
     }
 
+    // ===== MÉTODOS DE DEBUG =====
+    
+    public void debugCurrentUser() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null) {
+            System.out.println("🐛 =====DEBUG USUARIO ACTUAL=====");
+            System.out.println("🐛 Name: " + auth.getName());
+            System.out.println("🐛 Principal: " + auth.getPrincipal());
+            System.out.println("🐛 Authenticated: " + auth.isAuthenticated());
+            System.out.println("🐛 Authorities: " + auth.getAuthorities());
+            System.out.println("🐛 isAdmin: " + isAdmin());
+            System.out.println("🐛 isOperator: " + isOperator());
+            System.out.println("🐛 isViewer: " + isViewer());
+            System.out.println("🐛 isUser: " + isUser());
+            System.out.println("🐛 ================================");
+        } else {
+            System.out.println("🐛 NO HAY AUTHENTICATION");
+        }
+    }
+
     public String getLogoutUrl() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getLogoutUrl'");
+        // TODO: Implementar logout de Auth0
+        return "/logout";
     }
 }

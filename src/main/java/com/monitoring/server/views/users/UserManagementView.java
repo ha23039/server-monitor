@@ -27,12 +27,11 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.server.auth.AnonymousAllowed;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 
 /**
  * Vista para gestión de usuarios - Solo accesible para ADMIN
- * Actualizada para roles simplificados: ADMIN, USER
+ * ACTUALIZADA: Maneja todos los roles (ADMIN, OPERATOR, VIEWER, USER)
  */
 @Route(value = "users", layout = MainLayout.class)
 @PageTitle("Gestión de Usuarios")
@@ -60,6 +59,9 @@ public class UserManagementView extends VerticalLayout {
         add(createUserGrid());
         
         refreshUserGrid();
+        
+        // Debug temporal
+        authService.debugCurrentUser();
     }
 
     private Component createAccessDenied() {
@@ -75,7 +77,7 @@ public class UserManagementView extends VerticalLayout {
         message.getStyle().set("color", "var(--lumo-secondary-text-color)");
         
         Button backButton = new Button("🏠 Volver al Inicio", e -> {
-            getUI().ifPresent(ui -> ui.navigate("home"));
+            getUI().ifPresent(ui -> ui.navigate(""));
         });
         backButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         
@@ -93,7 +95,13 @@ public class UserManagementView extends VerticalLayout {
         Span description = new Span("Administra los roles y permisos de los usuarios del sistema");
         description.getStyle().set("color", "var(--lumo-secondary-text-color)");
         
-        VerticalLayout header = new VerticalLayout(title, description);
+        // Mostrar información del usuario actual
+        Span currentUserInfo = new Span("Usuario actual: " + authService.getCurrentUserName() + 
+                                       " (" + authService.getCurrentUserRoleDisplay() + ")");
+        currentUserInfo.getStyle().set("font-size", "var(--lumo-font-size-s)");
+        currentUserInfo.getStyle().set("color", "var(--lumo-primary-color)");
+        
+        VerticalLayout header = new VerticalLayout(title, description, currentUserInfo);
         header.setPadding(false);
         header.setSpacing(false);
         
@@ -118,7 +126,10 @@ public class UserManagementView extends VerticalLayout {
             .setSortable(true);
 
         // Auth0 Subject column (para debug)
-        userGrid.addColumn(user -> user.getAuth0Subject())
+        userGrid.addColumn(user -> {
+            String subject = user.getAuth0Subject();
+            return subject != null ? subject.substring(0, Math.min(subject.length(), 20)) + "..." : "N/A";
+        })
             .setHeader("Auth0 ID")
             .setAutoWidth(true);
 
@@ -150,12 +161,19 @@ public class UserManagementView extends VerticalLayout {
         Span badge = new Span(getRoleDisplayName(user.getRole()));
         badge.getElement().getThemeList().add("badge");
         
+        // Colores para todos los roles
         switch (user.getRole()) {
             case ADMIN:
-                badge.getElement().getThemeList().add("error");
+                badge.getElement().getThemeList().add("error"); // Rojo para admin
+                break;
+            case OPERATOR:
+                badge.getElement().getThemeList().add("primary"); // Azul para operator
+                break;
+            case VIEWER:
+                badge.getElement().getThemeList().add("success"); // Verde para viewer
                 break;
             case USER:
-                badge.getElement().getThemeList().add("success");
+                badge.getElement().getThemeList().add("contrast"); // Gris para user
                 break;
             default:
                 badge.getElement().getThemeList().add("contrast");
@@ -220,12 +238,26 @@ public class UserManagementView extends VerticalLayout {
         Span currentRole = new Span("Rol actual: " + getRoleDisplayName(user.getRole()));
         
         ComboBox<UserRole> roleComboBox = new ComboBox<>("Nuevo rol");
-        roleComboBox.setItems(UserRole.values());
+        roleComboBox.setItems(UserRole.values()); // Ahora incluye todos los roles
         roleComboBox.setItemLabelGenerator(this::getRoleDisplayName);
         roleComboBox.setValue(user.getRole());
         roleComboBox.setWidth("100%");
+        
+        // Descripción de roles
+        Span roleDescription = new Span();
+        roleDescription.getStyle().set("font-size", "var(--lumo-font-size-s)");
+        roleDescription.getStyle().set("color", "var(--lumo-secondary-text-color)");
+        
+        roleComboBox.addValueChangeListener(e -> {
+            if (e.getValue() != null) {
+                roleDescription.setText(getRoleDescription(e.getValue()));
+            }
+        });
+        
+        // Mostrar descripción inicial
+        roleDescription.setText(getRoleDescription(user.getRole()));
 
-        content.add(userInfo, currentRole, roleComboBox);
+        content.add(userInfo, currentRole, roleComboBox, roleDescription);
         dialog.add(content);
 
         dialog.setCancelable(true);
@@ -267,7 +299,7 @@ public class UserManagementView extends VerticalLayout {
                     if (user.isActive()) {
                         authService.deactivateUser(user.getId());
                     } else {
-                        authService.activateUser(user.getId()); // Usar método que agregamos
+                        authService.activateUser(user.getId());
                     }
                     
                     refreshUserGrid();
@@ -291,11 +323,38 @@ public class UserManagementView extends VerticalLayout {
     }
 
     private void refreshUserGrid() {
-        List<User> users = authService.getAllUsers();
-        userGrid.setItems(users);
+        try {
+            List<User> users = authService.getAllUsers();
+            userGrid.setItems(users);
+            
+            // Debug
+            System.out.println("💾 Usuarios cargados: " + users.size());
+            users.forEach(user -> 
+                System.out.println("  👤 " + user.getEmail() + " - " + user.getRole())
+            );
+        } catch (Exception e) {
+            System.err.println("❌ Error cargando usuarios: " + e.getMessage());
+            Notification.show("Error cargando usuarios: " + e.getMessage())
+                .addThemeVariants(NotificationVariant.LUMO_ERROR);
+        }
     }
 
     private String getRoleDisplayName(UserRole role) {
         return role.getDisplayName(); // Usar el método del enum
+    }
+    
+    private String getRoleDescription(UserRole role) {
+        switch (role) {
+            case ADMIN:
+                return "Acceso completo al sistema: usuarios, configuración, todos los monitoreos";
+            case OPERATOR:
+                return "Operaciones de monitoreo: bases de datos, alertas, configuraciones";
+            case VIEWER:
+                return "Solo lectura: dashboards, métricas básicas";
+            case USER:
+                return "Usuario básico: acceso limitado a funciones esenciales";
+            default:
+                return "";
+        }
     }
 }

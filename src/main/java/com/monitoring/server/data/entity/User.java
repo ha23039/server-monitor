@@ -16,7 +16,7 @@ import jakarta.persistence.Table;
 
 /**
  * Entidad User para almacenar información de usuarios autenticados con Auth0
- * Roles simplificados para coincidir con Auth0: admin, user
+ * Roles completos para coincidir con Auth0: admin, operator, viewer, user
  */
 @Entity
 @Table(name = "users")
@@ -45,7 +45,7 @@ public class User implements Serializable {
     
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false)
-    private UserRole role = UserRole.USER; // Cambiado de VIEWER a USER
+    private UserRole role = UserRole.VIEWER; // Cambiado: USER -> VIEWER como default
     
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
@@ -59,10 +59,12 @@ public class User implements Serializable {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
     
-    // Enum simplificado para coincidir con Auth0
+    // Enum COMPLETO para coincidir exactamente con Auth0
     public enum UserRole {
-        ADMIN("admin"),      // Coincide con Auth0 "admin" 
-        USER("user");        // Coincide con Auth0 "user"
+        ADMIN("admin"),         // Coincide con Auth0 "admin" 
+        OPERATOR("operator"),   // Coincide con Auth0 "operator"
+        VIEWER("viewer"),       // Coincide con Auth0 "viewer"
+        USER("user");           // Coincide con Auth0 "user" (mapea a viewer)
         
         private final String roleName;
         
@@ -80,7 +82,11 @@ public class User implements Serializable {
                     return role;
                 }
             }
-            return USER; // Default role
+            // Si recibe "user", mapear a VIEWER
+            if ("user".equalsIgnoreCase(roleName)) {
+                return VIEWER;
+            }
+            return VIEWER; // Default role
         }
         
         // Método para obtener el display name
@@ -88,11 +94,20 @@ public class User implements Serializable {
             switch (this) {
                 case ADMIN:
                     return "Administrador";
+                case OPERATOR:
+                    return "Operador";
+                case VIEWER:
+                    return "Visualizador";
                 case USER:
                     return "Usuario";
                 default:
                     return "Usuario";
             }
+        }
+        
+        // Método para obtener el rol con prefijo ROLE_ para Spring Security
+        public String getSpringRole() {
+            return "ROLE_" + this.roleName;
         }
     }
     
@@ -211,30 +226,56 @@ public class User implements Serializable {
         this.updatedAt = updatedAt;
     }
     
-    // Utility methods for role checking - SIMPLIFICADOS
+    // Utility methods para verificación de roles - COMPLETOS
     public boolean isAdmin() {
         return role == UserRole.ADMIN;
+    }
+    
+    public boolean isOperator() {
+        return role == UserRole.OPERATOR;
+    }
+    
+    public boolean isViewer() {
+        return role == UserRole.VIEWER || role == UserRole.USER;
     }
     
     public boolean isUser() {
         return role == UserRole.USER;
     }
     
-    // Métodos de permisos simplificados
+    // Métodos de permisos jerárquicos
+    public boolean hasAdminPrivileges() {
+        return role == UserRole.ADMIN;
+    }
+    
+    public boolean hasOperatorPrivileges() {
+        return role == UserRole.ADMIN || role == UserRole.OPERATOR;
+    }
+    
+    public boolean hasViewerPrivileges() {
+        return role == UserRole.ADMIN || role == UserRole.OPERATOR || 
+               role == UserRole.VIEWER || role == UserRole.USER;
+    }
+    
+    // Métodos de permisos específicos
     public boolean canManageSystem() {
         return role == UserRole.ADMIN;
     }
     
     public boolean canViewMetrics() {
-        return true; // Ambos roles pueden ver métricas
+        return hasViewerPrivileges();
     }
     
     public boolean canConfigureAlerts() {
-        return role == UserRole.ADMIN;
+        return hasOperatorPrivileges();
     }
     
     public boolean canManageDatabases() {
-        return role == UserRole.ADMIN;
+        return hasOperatorPrivileges();
+    }
+    
+    public boolean canManageUsers() {
+        return hasAdminPrivileges();
     }
     
     @Override

@@ -1,90 +1,76 @@
 package com.monitoring.server.views.error;
 
-import com.monitoring.server.views.MainLayout;
-import com.vaadin.flow.component.button.Button;
-import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
+import com.vaadin.flow.component.html.H3;
 import com.vaadin.flow.component.html.Paragraph;
-import com.vaadin.flow.component.icon.Icon;
+import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 import com.vaadin.flow.server.auth.AnonymousAllowed;
 
+/**
+ * Vista que se muestra cuando un usuario no tiene permisos para acceder a una página
+ */
+@Route("access-denied")
 @PageTitle("Acceso Denegado - Server Monitor")
-@Route(value = "access-denied", layout = MainLayout.class)
 @AnonymousAllowed
 public class AccessDeniedView extends VerticalLayout {
 
-    private static final String COLOR_WARNING = "#F59E0B";
-    private static final String COLOR_TEXT_PRIMARY = "#1F2937";
-    private static final String COLOR_TEXT_SECONDARY = "#6B7280";
-
     public AccessDeniedView() {
-        setSizeFull();
         setDefaultHorizontalComponentAlignment(Alignment.CENTER);
-        setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
-        getStyle().set("background-color", "var(--lumo-contrast-5pct)");
-
-        Div container = createErrorContainer();
-        add(container);
-    }
-
-    private Div createErrorContainer() {
-        Div container = new Div();
-        container.getStyle()
-            .set("background-color", "var(--lumo-base-color)")
-            .set("border-radius", "var(--lumo-border-radius-l)")
-            .set("padding", "var(--lumo-space-xl)")
-            .set("box-shadow", "var(--lumo-box-shadow-l)")
-            .set("text-align", "center")
-            .set("max-width", "500px");
-
-        Icon lockIcon = VaadinIcon.LOCK.create();
-        lockIcon.setSize("4em");
-        lockIcon.setColor(COLOR_WARNING);
-        lockIcon.getStyle().set("margin-bottom", "var(--lumo-space-l)");
-
-        H1 title = new H1("🔒 Acceso Denegado");
-        title.getStyle()
-            .set("color", COLOR_TEXT_PRIMARY)
-            .set("font-size", "2rem")
-            .set("margin", "0 0 var(--lumo-space-m) 0");
-
+        setJustifyContentMode(JustifyContentMode.CENTER);
+        setSizeFull();
+        
+        // Icono de acceso denegado
+        Div iconDiv = new Div();
+        iconDiv.getElement().setProperty("innerHTML", 
+            VaadinIcon.LOCK.create().getElement().getOuterHTML());
+        iconDiv.addClassName("text-error");
+        iconDiv.getStyle().set("font-size", "4rem");
+        iconDiv.getStyle().set("color", "var(--lumo-error-color)");
+        
+        // Título
+        H1 title = new H1("Acceso Denegado");
+        title.getStyle().set("color", "var(--lumo-error-text-color)");
+        title.getStyle().set("margin-top", "1rem");
+        
+        // Subtítulo
+        H3 subtitle = new H3("No tienes permisos para acceder a esta página");
+        subtitle.getStyle().set("color", "var(--lumo-secondary-text-color)");
+        subtitle.getStyle().set("font-weight", "normal");
+        
+        // Mensaje explicativo
         Paragraph message = new Paragraph(
-            "No tienes permisos suficientes para acceder a esta sección. " +
-            "Tu rol actual no permite el acceso a esta funcionalidad. " +
-            "Contacta al administrador si necesitas permisos adicionales."
+            "Tu cuenta no tiene los permisos necesarios para ver este contenido. " +
+            "Si necesitas acceso, contacta con tu administrador del sistema."
         );
-        message.getStyle()
-            .set("color", COLOR_TEXT_SECONDARY)
-            .set("font-size", "1rem")
-            .set("margin-bottom", "var(--lumo-space-l)")
-            .set("line-height", "1.6");
-
-        Button homeButton = new Button("🏠 Volver al Inicio", VaadinIcon.HOME.create());
-        homeButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        homeButton.getStyle().set("margin-right", "var(--lumo-space-s)");
-        homeButton.addClickListener(e -> 
-            getUI().ifPresent(ui -> ui.navigate(""))
+        message.getStyle().set("text-align", "center");
+        message.getStyle().set("max-width", "500px");
+        message.getStyle().set("color", "var(--lumo-secondary-text-color)");
+        
+        // Botón para volver al inicio
+        Button homeButton = new Button("Volver al Inicio", VaadinIcon.HOME.create());
+        homeButton.addClickListener(e -> {
+            getUI().ifPresent(ui -> ui.navigate(""));
+        });
+        homeButton.addClassName("primary");
+        homeButton.getStyle().set("margin-top", "2rem");
+        
+        // Contenedor principal
+        VerticalLayout content = new VerticalLayout(
+            iconDiv, title, subtitle, message, homeButton
         );
-
-        Button dashboardButton = new Button("📊 Dashboard", VaadinIcon.DASHBOARD.create());
-        dashboardButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        dashboardButton.addClickListener(e -> 
-            getUI().ifPresent(ui -> ui.navigate("dashboard"))
-        );
-
-        VerticalLayout content = new VerticalLayout(lockIcon, title, message, 
-            new Div(homeButton, dashboardButton));
-        content.setSpacing(false);
-        content.setPadding(false);
         content.setDefaultHorizontalComponentAlignment(Alignment.CENTER);
-
-        container.add(content);
-        return container;
+        content.setSpacing(true);
+        content.setPadding(true);
+        content.setMaxWidth("600px");
+        content.getStyle().set("background", "var(--lumo-base-color)");
+        content.getStyle().set("border-radius", "var(--lumo-border-radius-l)");
+        content.getStyle().set("box-shadow", "var(--lumo-box-shadow-s)");
+        
+        add(content);
     }
 }
