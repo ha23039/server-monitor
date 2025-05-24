@@ -153,4 +153,9 @@ public class Auth0SecurityHelper {
     public boolean canManageMonitoringAgents() {
         return hasAdminPrivileges();
     }
+
+    public String getLogoutUrl() {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getLogoutUrl'");
+    }
 }

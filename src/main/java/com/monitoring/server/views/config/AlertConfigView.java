@@ -32,8 +32,7 @@ import com.vaadin.flow.theme.lumo.LumoUtility;
  */
 @PageTitle("Configuración de Umbrales de Alerta")
 @Route(value = "config", layout = MainLayout.class)
-//@RequiresOperator // Requires OPERATOR or higher
-@AnonymousAllowed 
+@RequiresOperator // Requires OPERATOR or higher
 public class AlertConfigView extends VerticalLayout {
 
     private final AlertConfigService alertConfigService;

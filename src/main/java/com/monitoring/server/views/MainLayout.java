@@ -23,18 +23,23 @@ import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
+import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.router.RouterLink;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 
-/**
- * MainLayout limpio y profesional para la aplicación Server Monitor
- */
 public class MainLayout extends AppLayout {
 
-    @Autowired
-    private Auth0SecurityHelper securityHelper;
+    private final Auth0SecurityHelper securityHelper;
+
+    // Reutilizar colores si son globales o usar variables Lumo
+    private static final String COLOR_TEXT_PRIMARY_APP = "#1F2937"; // Ejemplo de HomeView
+    private static final String COLOR_TEXT_SECONDARY_APP = "#6B7280"; // Ejemplo de HomeView
+    private static final String COLOR_PRIMARY_APP = "#3B82F6"; // Ejemplo de HomeView
+    private static final String COLOR_DANGER_APP = "#EF4444"; // Ejemplo de HomeView
+    private static final String COLOR_SUCCESS_APP = "#10B981"; // Ejemplo de HomeView
+
 
     public MainLayout(@Autowired Auth0SecurityHelper securityHelper) {
         this.securityHelper = securityHelper;
@@ -43,192 +48,188 @@ public class MainLayout extends AppLayout {
     }
 
     private void createHeader() {
-        // Logo principal
         H1 logo = new H1("🖥️ Server Monitor");
         logo.addClassNames(
             LumoUtility.FontSize.LARGE,
-            LumoUtility.Margin.MEDIUM
+            LumoUtility.Margin.NONE, // Controlar margen con el layout contenedor
+            LumoUtility.TextColor.PRIMARY // Usa color primario del tema Lumo
         );
-        logo.getStyle().set("color", "#2c3e50");
+        logo.getStyle().set("line-height", "1"); // Ajuste para alineación vertical
 
-        // Toggle del menú
         DrawerToggle toggle = new DrawerToggle();
+        toggle.setAriaLabel("Toggle navigation menu");
 
-        // Información del usuario y logout
         HorizontalLayout userSection = createUserSection();
 
-        // Layout del header
-        HorizontalLayout header = new HorizontalLayout(toggle, logo);
+        HorizontalLayout headerLeft = new HorizontalLayout(toggle, logo);
+        headerLeft.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
+        headerLeft.setSpacing(true); // Espacio entre toggle y logo
+
+        HorizontalLayout header = new HorizontalLayout(headerLeft, userSection);
         header.setDefaultVerticalComponentAlignment(FlexComponent.Alignment.CENTER);
-        header.expand(logo);
         header.setWidthFull();
+        header.setPadding(true);
+        header.setSpacing(true);
+        header.getStyle()
+            .set("background-color", "var(--lumo-base-color)")
+            .set("border-bottom", "1px solid var(--lumo-contrast-10pct)")
+            .set("box-shadow", "var(--lumo-box-shadow-s)");
 
-        // Header completo
-        HorizontalLayout fullHeader = new HorizontalLayout(header, userSection);
-        fullHeader.setWidthFull();
-        fullHeader.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
-        fullHeader.setAlignItems(FlexComponent.Alignment.CENTER);
-        fullHeader.setPadding(true);
-        fullHeader.getStyle()
-            .set("background", "white")
-            .set("border-bottom", "1px solid #e1e5e9")
-            .set("box-shadow", "0 1px 3px rgba(0,0,0,0.1)");
-
-        addToNavbar(fullHeader);
+        addToNavbar(true, header); // true para que el contenido del navbar sea flexible
     }
 
     private HorizontalLayout createUserSection() {
-        HorizontalLayout userSection = new HorizontalLayout();
-        userSection.setSpacing(true);
-        userSection.setAlignItems(FlexComponent.Alignment.CENTER);
+        HorizontalLayout userSectionLayout = new HorizontalLayout();
+        userSectionLayout.setSpacing(true);
+        userSectionLayout.setAlignItems(FlexComponent.Alignment.CENTER);
 
-        // Información del usuario
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String userName = "Usuario";
-        String userRole = "Usuario";
-        
+        String userEmail = "No autenticado";
+        String userRole = "Invitado";
+
         if (auth != null && auth.getPrincipal() instanceof OidcUser) {
-            OidcUser user = (OidcUser) auth.getPrincipal();
-            userName = user.getFullName() != null ? user.getFullName() : user.getEmail();
+            OidcUser oidcUser = (OidcUser) auth.getPrincipal();
+            userName = oidcUser.getFullName() != null ? oidcUser.getFullName() : oidcUser.getGivenName();
+            if (userName == null) userName = oidcUser.getEmail(); // Fallback
+            userEmail = oidcUser.getEmail();
             userRole = securityHelper.getCurrentUserRoleDisplay();
         }
 
-        Div userInfo = new Div();
-        userInfo.getStyle().set("text-align", "right");
+        VerticalLayout userInfoText = new VerticalLayout();
+        userInfoText.setSpacing(false);
+        userInfoText.setPadding(false);
+        userInfoText.setDefaultHorizontalComponentAlignment(FlexComponent.Alignment.END); // Alinear texto a la derecha
 
         Span userNameSpan = new Span(userName);
-        userNameSpan.getStyle()
-            .set("font-weight", "600")
-            .set("color", "#2c3e50")
-            .set("display", "block")
-            .set("font-size", "0.9rem");
+        userNameSpan.addClassNames(LumoUtility.FontSize.SMALL, LumoUtility.FontWeight.SEMIBOLD, LumoUtility.TextColor.BODY);
 
-        Span userRoleSpan = new Span("🔑 " + userRole);
-        userRoleSpan.getStyle()
-            .set("color", "#6c757d")
-            .set("font-size", "0.8rem")
-            .set("display", "block");
+        Span userRoleSpan = new Span(userRole);
+        userRoleSpan.addClassNames(LumoUtility.FontSize.XSMALL, LumoUtility.TextColor.SECONDARY);
+        // Podrías añadir un icono al rol si quieres
+        // Icon roleIcon = VaadinIcon.KEY_A.create();
+        // roleIcon.setSize("0.75em");
+        // userRoleSpan.addComponentAsFirst(roleIcon);
+        // userRoleSpan.getStyle().set("gap", "var(--lumo-space-xs)");
 
-        userInfo.add(userNameSpan, userRoleSpan);
+        userInfoText.add(userNameSpan, userRoleSpan);
 
-        // Botón de logout
-        Button logoutButton = new Button("Cerrar Sesión", new Icon(VaadinIcon.SIGN_OUT));
-        logoutButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        logoutButton.addClickListener(e -> 
-            getUI().ifPresent(ui -> ui.getPage().setLocation("/logout"))
+        Button logoutButton = new Button("Salir", VaadinIcon.SIGN_OUT_ALT.create());
+        logoutButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE, ButtonVariant.LUMO_ERROR); // Error para destacar más la salida
+        logoutButton.getStyle().set("font-size", "var(--lumo-font-size-s)");
+        logoutButton.addClickListener(e ->
+            getUI().ifPresent(ui -> ui.getPage().setLocation(securityHelper.getLogoutUrl())) // Usar helper para URL de logout
         );
 
-        userSection.add(userInfo, logoutButton);
-        return userSection;
+        userSectionLayout.add(userInfoText, logoutButton);
+        return userSectionLayout;
     }
 
     private void createDrawer() {
-        // Título del drawer
         Div drawerHeader = new Div();
-        drawerHeader.getStyle()
-            .set("padding", "1rem")
-            .set("border-bottom", "1px solid #e1e5e9")
-            .set("background", "#f8f9fa");
+        drawerHeader.addClassNames(
+            LumoUtility.Display.FLEX, LumoUtility.AlignItems.CENTER,
+            LumoUtility.Padding.Horizontal.MEDIUM, LumoUtility.Padding.Vertical.SMALL,
+            LumoUtility.Background.CONTRAST_5 // Fondo sutil
+        );
+        drawerHeader.getStyle().set("border-bottom", "1px solid var(--lumo-contrast-10pct)");
+
+        Icon appIcon = VaadinIcon.CONNECT_O.create(); // Un icono diferente para el drawer
+        appIcon.setColor(COLOR_PRIMARY_APP);
+        appIcon.getStyle().set("margin-right", "var(--lumo-space-s)");
 
         H1 drawerTitle = new H1("Navegación");
-        drawerTitle.getStyle()
-            .set("margin", "0")
-            .set("font-size", "1.1rem")
-            .set("color", "#495057");
+        drawerTitle.addClassNames(LumoUtility.FontSize.MEDIUM, LumoUtility.TextColor.BODY, LumoUtility.Margin.NONE);
+        drawerHeader.add(appIcon, drawerTitle);
 
-        drawerHeader.add(drawerTitle);
 
-        // Tabs de navegación
         Tabs tabs = new Tabs();
         tabs.setOrientation(Tabs.Orientation.VERTICAL);
-        tabs.addClassNames(LumoUtility.Width.FULL);
-        tabs.getStyle().set("padding", "1rem 0");
+        tabs.setWidthFull();
+        // tabs.getStyle().set("padding", "var(--lumo-space-s) 0"); // Un poco menos de padding vertical
 
-        // Home
-        tabs.add(createTab(HomeView.class, VaadinIcon.HOME, "Inicio"));
-        
-        // Dashboard  
-        tabs.add(createTab(DashboardView.class, VaadinIcon.DASHBOARD, "Dashboard"));
-        
-        // Bases de datos
+        tabs.add(
+            createTab(HomeView.class, VaadinIcon.HOME_O, "Inicio"),
+            createTab(DashboardView.class, VaadinIcon.CHART_TIMELINE, "Dashboard")
+        );
+
         Tab databaseTab = createTab(DatabaseView.class, VaadinIcon.DATABASE, "Bases de Datos");
         if (!securityHelper.canViewDatabases()) {
-            databaseTab.getStyle().set("opacity", "0.5");
+            databaseTab.setEnabled(false); // Mejor deshabilitar que solo opacidad
         }
         tabs.add(databaseTab);
-    
-        // Configuraciones
-        Tab configTab = createTab(AlertConfigView.class, VaadinIcon.COG, "Configuración");
+
+        Tab configTab = createTab(AlertConfigView.class, VaadinIcon.COG_O, "Configuración");
         if (!securityHelper.canViewAlertConfig()) {
-            configTab.getStyle().set("opacity", "0.5");
+            configTab.setEnabled(false);
         }
         tabs.add(configTab);
 
-        // Gestión de usuarios (solo admin)
         if (securityHelper.isAdmin()) {
-            tabs.add(createTab(UserManagementView.class, VaadinIcon.USERS, "Gestión de Usuarios"));
+            tabs.add(createTab(UserManagementView.class, VaadinIcon.USERS, "Gestión Usuarios"));
         }
 
-        // Footer del drawer
         Div drawerFooter = new Div();
+        drawerFooter.addClassNames(
+            LumoUtility.Padding.MEDIUM, LumoUtility.Background.CONTRAST_5,
+            LumoUtility.TextAlignment.CENTER
+        );
         drawerFooter.getStyle()
-            .set("padding", "1rem")
-            .set("border-top", "1px solid #e1e5e9")
-            .set("background", "#f8f9fa")
-            .set("text-align", "center")
-            .set("margin-top", "auto");
+            .set("border-top", "1px solid var(--lumo-contrast-10pct)")
+            .set("margin-top", "auto"); // Empuja al final
 
         Span footerText = new Span("Server Monitor v2.0");
-        footerText.getStyle()
-            .set("font-size", "0.8rem")
-            .set("color", "#6c757d");
+        footerText.addClassNames(LumoUtility.FontSize.XSMALL, LumoUtility.TextColor.SECONDARY);
 
         Span roleIndicator = new Span("Rol: " + securityHelper.getCurrentUserRoleDisplay());
-        roleIndicator.getStyle()
-            .set("display", "block")
-            .set("font-size", "0.75rem")
-            .set("color", securityHelper.isAdmin() ? "#dc3545" : "#28a745")
-            .set("font-weight", "600")
-            .set("margin-top", "0.25rem");
+        roleIndicator.addClassNames(LumoUtility.Display.BLOCK, LumoUtility.FontSize.XSMALL, LumoUtility.FontWeight.SEMIBOLD, LumoUtility.Margin.Top.XSMALL);
+        roleIndicator.getStyle().set("color", securityHelper.isAdmin() ? COLOR_DANGER_APP : COLOR_SUCCESS_APP);
 
         drawerFooter.add(footerText, roleIndicator);
 
         addToDrawer(drawerHeader, tabs, drawerFooter);
+        setDrawerOpened(false); // Iniciar cerrado por defecto en pantallas pequeñas
     }
-    
-    private Tab createTab(Class<? extends Component> viewClass, VaadinIcon viewIcon, String viewName) {
-        RouterLink link = new RouterLink(viewClass);
-        link.getStyle()
-            .set("display", "flex")
-            .set("align-items", "center")
-            .set("padding", "0.75rem 1rem")
-            .set("text-decoration", "none")
-            .set("color", "#495057")
-            .set("border-radius", "6px")
-            .set("margin", "0.25rem")
-            .set("transition", "all 0.2s ease");
 
-        // Hover effect
+    private Tab createTab(Class<? extends Component> viewClass, VaadinIcon viewIcon, String viewName) {
+        RouterLink link = new RouterLink();
+        link.setRoute(viewClass); // Establecer ruta así es más robusto
+        link.addClassNames(
+            LumoUtility.Display.FLEX, LumoUtility.AlignItems.CENTER,
+            LumoUtility.Padding.Horizontal.MEDIUM, LumoUtility.Padding.Vertical.SMALL,
+            LumoUtility.TextColor.SECONDARY // Color por defecto para links no activos
+        );
+        link.getStyle()
+            .set("text-decoration", "none")
+            .set("border-radius", "var(--lumo-border-radius-s)")
+            .set("margin", "var(--lumo-space-xs) var(--lumo-space-s)") // Margen horizontal
+            .set("transition", "background-color 0.2s, color 0.2s");
+
+        // Efecto hover usando pseudo-clases de Lumo si es posible o JS
+        // Para Lumo, se puede añadir un atributo de tema y estilizarlo en CSS
+        // O mantener el JS si es simple:
         link.getElement().addEventListener("mouseenter", e -> {
-            link.getStyle().set("background", "#e9ecef");
+            link.getStyle().set("background-color", "var(--lumo-contrast-5pct)");
+            link.getStyle().set("color", "var(--lumo-primary-text-color)");
         });
-        
         link.getElement().addEventListener("mouseleave", e -> {
-            link.getStyle().set("background", "transparent");
+            link.getStyle().set("background-color", "transparent");
+            link.getStyle().set("color", "var(--lumo-secondary-text-color)");
         });
-        
+
+
         Icon icon = viewIcon.create();
-        icon.setSize("18px");
-        icon.getStyle().set("margin-right", "0.75rem");
-        
+        icon.addClassNames(LumoUtility.IconSize.SMALL); // Usar tamaños de icono de Lumo
+        icon.getStyle().set("margin-right", "var(--lumo-space-m)");
+
         Span label = new Span(viewName);
-        label.getStyle().set("font-weight", "500");
-        
+        label.addClassNames(LumoUtility.FontSize.SMALL, LumoUtility.FontWeight.MEDIUM);
+
         link.add(icon, label);
-        
+
         Tab tab = new Tab(link);
-        tab.getStyle().set("margin", "0");
-        
+        // Lumo se encarga del estilo de Tab activo, no necesitamos mucho más
+        // tab.getStyle().set("padding", "0"); // Remover padding del Tab si el link ya lo tiene
         return tab;
     }
 }

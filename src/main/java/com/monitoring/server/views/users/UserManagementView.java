@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 import com.monitoring.server.data.entity.User;
 import com.monitoring.server.data.entity.User.UserRole;
+import com.monitoring.server.security.SecurityAnnotations.RequiresAdmin;
 import com.monitoring.server.service.impl.AuthService;
 import com.monitoring.server.views.MainLayout;
 import com.vaadin.flow.component.Component;
@@ -35,7 +36,7 @@ import com.vaadin.flow.theme.lumo.LumoUtility;
  */
 @Route(value = "users", layout = MainLayout.class)
 @PageTitle("Gestión de Usuarios")
-@AnonymousAllowed // Cambiaremos esto por verificación programática
+@RequiresAdmin
 public class UserManagementView extends VerticalLayout {
 
     @Autowired
