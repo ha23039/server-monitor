@@ -9,6 +9,7 @@ import com.monitoring.server.security.MenuSecurityHelper;
 import com.monitoring.server.views.config.AlertConfigView;
 import com.monitoring.server.views.dashboard.DashboardView;
 import com.monitoring.server.views.databases.DatabaseView;
+import com.monitoring.server.views.home.HomeView;
 import com.monitoring.server.views.users.UserManagementView;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.applayout.AppLayout;

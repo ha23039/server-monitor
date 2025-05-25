@@ -147,6 +147,7 @@ public class SecurityConfig {
         };
     }
 
+
     @Bean
     public AuthenticationSuccessHandler authenticationSuccessHandler() {
         return (request, response, authentication) -> {
@@ -158,8 +159,8 @@ public class SecurityConfig {
                 System.out.println("   🏷️  Authority: '" + auth.getAuthority() + "'")
             );
             
-            // Redirigir después del login exitoso directamente al home
-            response.sendRedirect("/home");
+            // ✅ CAMBIO CRÍTICO: Redirigir a "/" en lugar de "/home"
+            response.sendRedirect("/");
         };
     }
 

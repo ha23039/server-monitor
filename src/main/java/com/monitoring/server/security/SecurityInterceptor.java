@@ -1,7 +1,5 @@
 package com.monitoring.server.security;
 
-import java.util.Arrays;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -17,10 +15,7 @@ import com.vaadin.flow.server.ServiceInitEvent;
 import com.vaadin.flow.server.VaadinServiceInitListener;
 
 /**
- * Security Interceptor for Vaadin Views
- * Handles route-level security based on custom annotations
- * Works in conjunction with Spring Security method-level security
- * CORREGIDO: Implementa jerarquía de roles correctamente
+ * ✅ MEJORADO: Security Interceptor sin logs excesivos
  */
 @Component
 public class SecurityInterceptor implements VaadinServiceInitListener {
@@ -37,71 +32,63 @@ public class SecurityInterceptor implements VaadinServiceInitListener {
 
     private void checkSecurity(BeforeEnterEvent event) {
         Class<?> targetView = event.getNavigationTarget();
-        
-        // Debug logging
-        System.out.println("🔍 Navegando a: " + targetView.getSimpleName());
-        System.out.println("🔍 Anotaciones: " + Arrays.toString(targetView.getAnnotations()));
+        String viewName = targetView.getSimpleName();
         
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         boolean isAuthenticated = auth != null && auth.isAuthenticated() && 
                                 !"anonymousUser".equals(auth.getName());
         
-        System.out.println("🔍 Usuario autenticado: " + isAuthenticated);
-        
-        // Debug de roles - CORREGIDO
-        if (auth != null && auth.getAuthorities() != null) {
-            System.out.println("🔍 Roles del usuario:");
-            auth.getAuthorities().forEach(authority -> 
-                System.out.println("   - " + authority.getAuthority())
-            );
-            
-            // JERARQUÍA CORRECTA
-            System.out.println("🔍 Tiene ROLE_admin: " + hasRole("ROLE_admin"));
-            System.out.println("🔍 Tiene privilegios admin: " + hasAdminPrivileges());
-            System.out.println("🔍 Tiene privilegios operator: " + hasOperatorPrivileges());
-            System.out.println("🔍 Tiene privilegios viewer: " + hasViewerPrivileges());
+        // ✅ SKIP: Vistas que permiten acceso anónimo
+        if (targetView.isAnnotationPresent(com.vaadin.flow.server.auth.AnonymousAllowed.class)) {
+            return;
         }
         
-        // Verificar anotaciones de seguridad
+        // ✅ SKIP: Vistas de error y navegación del sistema
+        if (viewName.contains("Error") || viewName.contains("NotFound") || 
+            viewName.contains("AccessDenied") || viewName.contains("LoginView") ||
+            viewName.equals("TestView")) {
+            return;
+        }
+        
+        // ✅ VERIFICACIONES DE SEGURIDAD
+        
+        // 1. Verificar autenticación básica
         if (targetView.isAnnotationPresent(RequiresAuth.class) || 
             targetView.isAnnotationPresent(RequiresViewer.class)) {
-            System.out.println("🔍 Vista requiere autenticación");
+            
             if (!isAuthenticated) {
-                System.out.println("❌ Redirigiendo a login - no autenticado");
+                System.out.println("❌ " + viewName + " - Redirigiendo a login - no autenticado");
                 event.rerouteTo("login");
                 return;
             }
-            System.out.println("✅ Usuario autenticado - acceso permitido");
         }
         
+        // 2. Verificar permisos de operador
         if (targetView.isAnnotationPresent(RequiresOperator.class)) {
-            System.out.println("🔍 Vista requiere Operator o Admin");
             if (!isAuthenticated) {
-                System.out.println("❌ Redirigiendo a login - no autenticado");
+                System.out.println("❌ " + viewName + " - Redirigiendo a login - no autenticado");
                 event.rerouteTo("login");
                 return;
             }
             if (!hasOperatorPrivileges()) {
-                System.out.println("❌ Redirigiendo a access-denied - sin permisos de operator");
+                System.out.println("❌ " + viewName + " - Acceso denegado - sin permisos de operator");
                 event.rerouteTo("access-denied");
                 return;
             }
-            System.out.println("✅ Usuario tiene permisos de operator - acceso permitido");
         }
         
+        // 3. Verificar permisos de administrador  
         if (targetView.isAnnotationPresent(RequiresAdmin.class)) {
-            System.out.println("🔍 Vista requiere Admin");
             if (!isAuthenticated) {
-                System.out.println("❌ Redirigiendo a login - no autenticado");
+                System.out.println("❌ " + viewName + " - Redirigiendo a login - no autenticado");
                 event.rerouteTo("login");
                 return;
             }
             if (!hasAdminPrivileges()) {
-                System.out.println("❌ Redirigiendo a access-denied - sin permisos de admin");
+                System.out.println("❌ " + viewName + " - Acceso denegado - sin permisos de admin");
                 event.rerouteTo("access-denied");
                 return;
             }
-            System.out.println("✅ Usuario tiene permisos de admin - acceso permitido");
         }
     }
     
@@ -115,19 +102,11 @@ public class SecurityInterceptor implements VaadinServiceInitListener {
         return false;
     }
     
-    // JERARQUÍA CORRECTA - ADMIN tiene todos los privilegios
     private boolean hasAdminPrivileges() {
         return hasRole("ROLE_admin");
     }
     
-    // OPERATOR incluye ADMIN
     private boolean hasOperatorPrivileges() {
         return hasRole("ROLE_admin") || hasRole("ROLE_operator");
-    }
-    
-    // VIEWER incluye ADMIN y OPERATOR
-    private boolean hasViewerPrivileges() {
-        return hasRole("ROLE_admin") || hasRole("ROLE_operator") || 
-               hasRole("ROLE_viewer") || hasRole("ROLE_user");
     }
 }
