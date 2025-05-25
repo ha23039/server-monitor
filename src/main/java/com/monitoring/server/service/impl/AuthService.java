@@ -312,16 +312,16 @@ public class AuthService {
         // Prioridad: admin > operator > viewer > user
         // 🔧 CAMBIO CRÍTICO: usar UserRole.fromString() para conversión correcta
         if (roles.contains("admin")) {
-            return UserRole.fromString("admin");  // ✅ usa fromString()
+            return UserRole.ADMIN;  // ✅ Usar enum directo
         }
         if (roles.contains("operator")) {
-            return UserRole.fromString("operator");  // ✅ usa fromString()
+            return UserRole.OPERATOR;  // ✅ Usar enum directo
         }
         if (roles.contains("viewer")) {
-            return UserRole.fromString("viewer");  // ✅ usa fromString()
+            return UserRole.VIEWER;  // ✅ Usar enum directo
         }
         if (roles.contains("user")) {
-            return UserRole.fromString("user");  // ✅ usa fromString()
+            return UserRole.USER;  // ✅ Usar enum directo
         }
 
         logger.warn("⚠️ Roles no reconocidos: {}, asignando VIEWER", roles);
