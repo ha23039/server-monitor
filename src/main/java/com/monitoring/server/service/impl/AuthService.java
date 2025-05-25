@@ -65,7 +65,7 @@ public class AuthService {
     public UserRole getCurrentUserRole() {
         return getCurrentUser()
             .map(User::getRole)
-            .orElse(UserRole.VIEWER); // Default role actualizado
+            .orElse(UserRole.VIEWER); // Default role
     }
 
     /**
@@ -190,18 +190,23 @@ public class AuthService {
             logger.info("🆕 Creando nuevo usuario: {}", email);
         }
         
-        // Actualizar datos
-        user.setName(name);
-        user.setNickname(nickname);
-        user.setPicture(picture);
-        user.setRole(userRole);
-        user.setLastLogin(LocalDateTime.now());
-        user.setUpdatedAt(LocalDateTime.now());
-        
-        User savedUser = userRepository.save(user);
-        logger.info("✅ Usuario guardado con ID: {}", savedUser.getId());
-        
-        return savedUser;
+        try {
+            // Actualizar datos
+            user.setName(name);
+            user.setNickname(nickname);
+            user.setPicture(picture);
+            user.setRole(userRole);
+            user.setLastLogin(LocalDateTime.now());
+            user.setUpdatedAt(LocalDateTime.now());
+            
+            User savedUser = userRepository.save(user);
+            logger.info("✅ Usuario guardado con ID: {}", savedUser.getId());
+            
+            return savedUser;
+        } catch (Exception e) {
+            logger.error("❌ Error sincronizando usuario: {}", e.getMessage());
+            throw e;
+        }
     }
 
     /**
@@ -244,7 +249,7 @@ public class AuthService {
      */
     private UserRole extractUserRoleFromOidc(OidcUser oidcUser) {
         Map<String, Object> claims = oidcUser.getClaims();
-        logger.debug("🔍 Claims disponibles: {}", claims.keySet());
+        logger.debug("🔍 TODOS LOS CLAIMS: {}", claims);
         
         // Buscar en el namespace personalizado de Auth0
         String rolesKey = "https://servermonitor.api/roles";
@@ -253,10 +258,12 @@ public class AuthService {
         if (rolesObj instanceof Collection) {
             @SuppressWarnings("unchecked")
             Collection<String> roles = (Collection<String>) rolesObj;
+            logger.info("✅ Roles extraídos del namespace custom: {}", roles);
             return extractUserRole(roles);
         } else if (rolesObj instanceof List) {
             @SuppressWarnings("unchecked")
             List<String> roles = (List<String>) rolesObj;
+            logger.info("✅ Roles extraídos del namespace custom: {}", roles);
             return extractUserRole(roles);
         }
         
@@ -293,26 +300,28 @@ public class AuthService {
 
     /**
      * Extract user role from Auth0 roles claim - SISTEMA COMPLETO
+     * 🔧 CORREGIDO: Usa UserRole.fromString() para conversión correcta
      */
     private UserRole extractUserRole(Collection<String> roles) {
         if (roles == null || roles.isEmpty()) {
             return UserRole.VIEWER;
         }
 
-        logger.debug("🔍 Procesando roles: {}", roles);
+        logger.info("🔍 ROLES EXTRAÍDOS: {}", roles);
 
         // Prioridad: admin > operator > viewer > user
+        // 🔧 CAMBIO CRÍTICO: usar UserRole.fromString() para conversión correcta
         if (roles.contains("admin")) {
-            return UserRole.ADMIN;
+            return UserRole.fromString("admin");  // ✅ usa fromString()
         }
         if (roles.contains("operator")) {
-            return UserRole.OPERATOR;
+            return UserRole.fromString("operator");  // ✅ usa fromString()
         }
         if (roles.contains("viewer")) {
-            return UserRole.VIEWER;
+            return UserRole.fromString("viewer");  // ✅ usa fromString()
         }
         if (roles.contains("user")) {
-            return UserRole.USER; // Mapea a USER (equivalente a viewer para permisos)
+            return UserRole.fromString("user");  // ✅ usa fromString()
         }
 
         logger.warn("⚠️ Roles no reconocidos: {}, asignando VIEWER", roles);
