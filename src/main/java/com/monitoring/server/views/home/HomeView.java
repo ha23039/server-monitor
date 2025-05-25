@@ -2,7 +2,7 @@ package com.monitoring.server.views.home;
 
 import org.springframework.beans.factory.annotation.Autowired;
 
-import com.monitoring.server.security.MenuSecurityHelper; // ✅ CORRECTO: Usar MenuSecurityHelper
+import com.monitoring.server.security.MenuSecurityHelper; 
 import com.monitoring.server.security.SecurityAnnotations.RequiresAuth;
 import com.monitoring.server.views.MainLayout;
 import com.monitoring.server.views.config.AlertConfigView;
@@ -25,7 +25,7 @@ import com.vaadin.flow.router.RouteAlias;
 @PageTitle("Inicio - Server Monitor")
 @Route(value = "", layout = MainLayout.class)
 @RouteAlias(value = "home", layout = MainLayout.class)
-@RequiresAuth
+//@RequiresAuth
 public class HomeView extends VerticalLayout {
 
     private  MenuSecurityHelper securityHelper; // ✅ CORRECTO: Usar MenuSecurityHelper
