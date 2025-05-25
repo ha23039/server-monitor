@@ -159,7 +159,7 @@ public class SecurityConfig {
             );
             
             // Redirigir después del login exitoso directamente al home
-            response.sendRedirect("/");
+            response.sendRedirect("/home");
         };
     }
 
