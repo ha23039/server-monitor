@@ -2,7 +2,7 @@ package com.monitoring.server.views.home;
 
 import org.springframework.beans.factory.annotation.Autowired;
 
-import com.monitoring.server.security.Auth0SecurityHelper;
+import com.monitoring.server.security.MenuSecurityHelper; // ✅ CORRECTO: Usar MenuSecurityHelper
 import com.monitoring.server.security.SecurityAnnotations.RequiresAuth;
 import com.monitoring.server.views.MainLayout;
 import com.monitoring.server.views.config.AlertConfigView;
@@ -28,11 +28,9 @@ import com.vaadin.flow.router.RouteAlias;
 @RequiresAuth
 public class HomeView extends VerticalLayout {
 
-    
+    private  MenuSecurityHelper securityHelper; // ✅ CORRECTO: Usar MenuSecurityHelper
 
-    private final Auth0SecurityHelper securityHelper;
-
-    // Paleta de colores sugerida (puedes ajustarla)
+    // Paleta de colores sugerida
     private static final String COLOR_PRIMARY = "#3B82F6"; // Azul principal
     private static final String COLOR_SECONDARY = "#10B981"; // Verde para éxito/bases de datos
     private static final String COLOR_ACCENT = "#8B5CF6"; // Púrpura para configuración/destacados
@@ -43,52 +41,60 @@ public class HomeView extends VerticalLayout {
     private static final String COLOR_BACKGROUND_LIGHT = "var(--lumo-contrast-5pct)"; // Gris muy claro para fondos
     private static final String COLOR_BORDER = "#E5E7EB"; // Gris claro para bordes
 
-    public HomeView(@Autowired Auth0SecurityHelper securityHelper) {
-        this.securityHelper = securityHelper;
+    public HomeView(@Autowired MenuSecurityHelper securityHelper) {
+        try {
+            System.out.println("🏠 CONSTRUCTOR HomeView - INICIO");
+            
+            this.securityHelper = securityHelper;
 
-        setPadding(false); // Quitamos padding general para controlar por sección
-        setSpacing(false);
-        setSizeFull();
-        setDefaultHorizontalComponentAlignment(Alignment.CENTER); // Centra el contenido
-        getStyle()
-        .set("background-color", "var(--lumo-contrast-5pct)")
-        .set("overflow-y", "auto"); // Para scroll si el contenido es largo
-        
+            setPadding(false);
+            setSpacing(false);
+            setSizeFull();
+            setDefaultHorizontalComponentAlignment(Alignment.CENTER);
+            getStyle()
+                .set("background-color", "var(--lumo-contrast-5pct)")
+                .set("overflow-y", "auto");
 
-        // Contenedor principal para aplicar max-width y padding
-        VerticalLayout contentWrapper = new VerticalLayout();
-        contentWrapper.setPadding(true);
-        contentWrapper.setSpacing(true); // Espacio entre secciones
-        contentWrapper.setWidthFull();
-        contentWrapper.setMaxWidth("1200px"); // Ancho máximo para legibilidad
-        contentWrapper.getStyle().set("padding", "var(--lumo-space-l)");
+            // Contenedor principal
+            VerticalLayout contentWrapper = new VerticalLayout();
+            contentWrapper.setPadding(true);
+            contentWrapper.setSpacing(true);
+            contentWrapper.setWidthFull();
+            contentWrapper.setMaxWidth("1200px");
+            contentWrapper.getStyle().set("padding", "var(--lumo-space-l)");
 
+            contentWrapper.add(createWelcomeHeader());
+            contentWrapper.add(createNavigationCards());
+            contentWrapper.add(createSystemStatus());
 
-        contentWrapper.add(createWelcomeHeader());
-        contentWrapper.add(createNavigationCards());
-        contentWrapper.add(createSystemStatus());
+            if (securityHelper.isAdmin()) { // ✅ CORRECTO: Usar isAdmin()
+                contentWrapper.add(createQuickStats());
+            }
+            
+            // Pie de página simple
+            Div footer = new Div(new Span("© " + java.time.Year.now() + " Server Monitor - Todos los derechos reservados"));
+            footer.getStyle()
+                .set("text-align", "center")
+                .set("font-size", "var(--lumo-font-size-s)")
+                .set("color", COLOR_TEXT_SECONDARY)
+                .set("padding", "var(--lumo-space-m) 0");
+            contentWrapper.add(footer);
 
-        if (securityHelper.isAdmin()) {
-            contentWrapper.add(createQuickStats());
+            add(contentWrapper);
+            
+            System.out.println("🏠 CONSTRUCTOR HomeView - ÉXITO");
+        } catch (Exception e) {
+            System.err.println("❌ ERROR EN HOMEVIEW: " + e.getMessage());
+            e.printStackTrace();
+            add(new H1("Error en HomeView: " + e.getMessage()));
         }
-        
-        // Pie de página simple
-        Div footer = new Div(new Span("© " + java.time.Year.now() + " Server Monitor - Todos los derechos reservados"));
-        footer.getStyle()
-            .set("text-align", "center")
-            .set("font-size", "var(--lumo-font-size-s)")
-            .set("color", COLOR_TEXT_SECONDARY)
-            .set("padding", "var(--lumo-space-m) 0");
-        contentWrapper.add(footer);
-
-        add(contentWrapper);
     }
 
     private Component createWelcomeHeader() {
         VerticalLayout headerLayout = new VerticalLayout();
         headerLayout.setAlignItems(FlexComponent.Alignment.CENTER);
         headerLayout.setSpacing(false);
-        headerLayout.setPadding(false); // Quitamos padding para controlar márgenes de H1 y P
+        headerLayout.setPadding(false);
         headerLayout.getStyle().set("margin-bottom", "var(--lumo-space-xl)");
 
         Icon monitorIcon = VaadinIcon.DESKTOP.create();
@@ -97,7 +103,7 @@ public class HomeView extends VerticalLayout {
 
         H1 title = new H1("Bienvenido al Monitor de Servidores");
         title.getStyle()
-            .set("font-size", "2.5rem") // Más grande
+            .set("font-size", "2.5rem")
             .set("font-weight", "700")
             .set("color", COLOR_TEXT_PRIMARY)
             .set("margin-top", "var(--lumo-space-s)")
@@ -127,35 +133,35 @@ public class HomeView extends VerticalLayout {
     }
 
     private Component createNavigationCards() {
-        FlexLayout cardsLayout = new FlexLayout(); // Usamos FlexLayout para mejor wrapping
-        cardsLayout.setFlexWrap(FlexLayout.FlexWrap.WRAP); // Permitir que las tarjetas se ajusten
+        FlexLayout cardsLayout = new FlexLayout();
+        cardsLayout.setFlexWrap(FlexLayout.FlexWrap.WRAP);
         cardsLayout.setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
         cardsLayout.getStyle()
-            .set("gap", "var(--lumo-space-l)") // Espacio entre tarjetas
+            .set("gap", "var(--lumo-space-l)")
             .set("margin-bottom", "var(--lumo-space-xl)");
 
         cardsLayout.add(
             createNavigationCard(
                 VaadinIcon.DASHBOARD, "Dashboard",
                 "Métricas clave en tiempo real.",
-                COLOR_PRIMARY, true,
+               COLOR_PRIMARY, true, // ✅ CORRECTO: Usar canAccessDashboard()
                 () -> getUI().ifPresent(ui -> ui.navigate(DashboardView.class))
             ),
             createNavigationCard(
                 VaadinIcon.DATABASE, "Bases de Datos",
                 "Administre sus conexiones.",
-                COLOR_SECONDARY, securityHelper.canViewDatabases(),
+                COLOR_SECONDARY, securityHelper.canViewDatabases(), // ✅ CORRECTO: Usar canViewDatabases()
                 () -> getUI().ifPresent(ui -> ui.navigate(DatabaseView.class))
             ),
             createNavigationCard(
                 VaadinIcon.COG_O, "Configuración",
                 securityHelper.isAdmin() ? "Ajuste umbrales y alertas." : "Ver configuración de alertas.",
-                COLOR_ACCENT, securityHelper.canViewAlertConfig(),
+                COLOR_ACCENT, securityHelper.canViewAlertConfig(), // ✅ CORRECTO: Usar canViewAlertConfig()
                 () -> getUI().ifPresent(ui -> ui.navigate(AlertConfigView.class))
             )
         );
 
-        if (securityHelper.isAdmin()) {
+        if (securityHelper.isAdmin()) { // ✅ CORRECTO: Usar isAdmin()
             cardsLayout.add(createNavigationCard(
                 VaadinIcon.USERS, "Gestión de Usuarios",
                 "Administre roles y accesos.",
@@ -169,15 +175,15 @@ public class HomeView extends VerticalLayout {
     private Component createNavigationCard(VaadinIcon iconType, String title, String description,
                                            String accentColor, boolean enabled, Runnable clickAction) {
         VerticalLayout card = new VerticalLayout();
-        card.setSpacing(false); // Controlamos el espaciado interno
-        card.setPadding(true); // Padding interno
+        card.setSpacing(false);
+        card.setPadding(true);
         card.getStyle()
             .set("background-color", "var(--lumo-base-color)")
-            .set("border-radius", "var(--lumo-border-radius-l)") // Bordes más redondeados
+            .set("border-radius", "var(--lumo-border-radius-l)")
             .set("box-shadow", "var(--lumo-box-shadow-s)")
             .set("padding", "var(--lumo-space-l)")
-            .set("width", "280px") // Ancho fijo para consistencia
-            .set("height", "220px") // Alto fijo
+            .set("width", "280px")
+            .set("height", "220px")
             .set("cursor", enabled ? "pointer" : "not-allowed")
             .set("opacity", enabled ? "1" : "0.7")
             .set("transition", "transform 0.2s ease-out, box-shadow 0.2s ease-out");
@@ -189,7 +195,7 @@ public class HomeView extends VerticalLayout {
             card.getElement().addEventListener("mouseenter", e -> {
                 card.getStyle()
                     .set("transform", "translateY(-5px)")
-                    .set("box-shadow", "var(--lumo-box-shadow-l)"); // Sombra más pronunciada
+                    .set("box-shadow", "var(--lumo-box-shadow-l)");
             });
             card.getElement().addEventListener("mouseleave", e -> {
                 card.getStyle()
@@ -198,9 +204,9 @@ public class HomeView extends VerticalLayout {
             });
         }
 
-        Div iconWrapper = new Div(); // Contenedor para el ícono con fondo
+        Div iconWrapper = new Div();
         iconWrapper.getStyle()
-            .set("background-color", accentColor + "1A") // Color de acento con opacidad
+            .set("background-color", accentColor + "1A")
             .set("border-radius", "50%")
             .set("padding", "var(--lumo-space-m)")
             .set("display", "flex")
@@ -228,21 +234,17 @@ public class HomeView extends VerticalLayout {
             .set("line-height", "1.5")
             .set("margin", "0");
         
-        // Usar un layout intermedio para centrar el texto si es necesario, o simplemente añadir
         VerticalLayout textContent = new VerticalLayout(cardTitle, cardDescription);
         textContent.setSpacing(false);
         textContent.setPadding(false);
         textContent.setDefaultHorizontalComponentAlignment(Alignment.CENTER);
 
-
         card.add(iconWrapper, textContent);
-        // card.setFlexGrow(1, textContent); // Para que el texto ocupe el espacio restante si es necesario
-        
         return card;
     }
 
     private Component createSystemStatus() {
-        Section statusSection = new Section(); // Usamos Section semánticamente
+        Section statusSection = new Section();
         statusSection.getStyle()
             .set("background-color", "var(--lumo-base-color)")
             .set("border-radius", "var(--lumo-border-radius-l)")
@@ -257,7 +259,7 @@ public class HomeView extends VerticalLayout {
             .set("margin", "0 0 var(--lumo-space-l) 0");
 
         VerticalLayout statusList = new VerticalLayout();
-        statusList.setSpacing(false); // Espacio entre ítems controlado por margen
+        statusList.setSpacing(false);
         statusList.setPadding(false);
 
         String[] statusItemsData = {
@@ -274,7 +276,7 @@ public class HomeView extends VerticalLayout {
             itemLayout.getStyle().set("margin-bottom", "var(--lumo-space-s)");
 
             Icon checkIcon = VaadinIcon.CHECK_CIRCLE.create();
-            checkIcon.setColor(COLOR_SECONDARY); // Verde para éxito
+            checkIcon.setColor(COLOR_SECONDARY);
             checkIcon.getStyle().set("margin-right", "var(--lumo-space-s)");
 
             Span text = new Span(itemText);
@@ -286,7 +288,6 @@ public class HomeView extends VerticalLayout {
             statusList.add(itemLayout);
         }
         
-        // Añadir un pequeño mensaje de confianza
         Paragraph confidenceMessage = new Paragraph(
             "Todos los sistemas principales están funcionando correctamente. Monitorización activa."
         );
@@ -317,14 +318,13 @@ public class HomeView extends VerticalLayout {
 
         FlexLayout statsGrid = new FlexLayout();
         statsGrid.setFlexWrap(FlexLayout.FlexWrap.WRAP);
-        statsGrid.setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER); // O START si prefieres alineado a la izquierda
+        statsGrid.setJustifyContentMode(FlexComponent.JustifyContentMode.CENTER);
         statsGrid.getStyle().set("gap", "var(--lumo-space-m)");
 
-        // Datos mock, idealmente vendrían del backend
         statsGrid.add(
             createStatCard(VaadinIcon.HEART_O, "Salud del Sistema", "Óptima", COLOR_SECONDARY),
-            createStatCard(VaadinIcon.USERS, "Usuarios Activos", "15", COLOR_PRIMARY), // Ejemplo
-            createStatCard(VaadinIcon.BELL_O, "Alertas Activas", "2", COLOR_WARNING), // Ejemplo
+            createStatCard(VaadinIcon.USERS, "Usuarios Activos", "15", COLOR_PRIMARY),
+            createStatCard(VaadinIcon.BELL_O, "Alertas Activas", "2", COLOR_WARNING),
             createStatCard(VaadinIcon.CLOCK, "Uptime (24h)", "99.98%", COLOR_ACCENT)
         );
         
@@ -334,13 +334,13 @@ public class HomeView extends VerticalLayout {
 
     private Component createStatCard(VaadinIcon iconType, String label, String value, String accentColor) {
         VerticalLayout card = new VerticalLayout();
-        card.setAlignItems(Alignment.CENTER); // Centra el contenido
-        card.setSpacing(false); // Controlamos espaciado manualmente
+        card.setAlignItems(Alignment.CENTER);
+        card.setSpacing(false);
         card.getStyle()
-            .set("background-color", COLOR_BACKGROUND_LIGHT) // Fondo ligeramente diferente
+            .set("background-color", COLOR_BACKGROUND_LIGHT)
             .set("border-radius", "var(--lumo-border-radius-m)")
             .set("padding", "var(--lumo-space-m)")
-            .set("min-width", "180px") // Ancho mínimo para que no se aplasten mucho
+            .set("min-width", "180px")
             .set("border-left", "4px solid " + accentColor);
         
         Icon icon = iconType.create();

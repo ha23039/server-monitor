@@ -3,6 +3,7 @@ package com.monitoring.server.views.databases;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import com.monitoring.server.data.entity.Database;
+import com.monitoring.server.security.Auth0SecurityHelper;
 import com.monitoring.server.security.MenuSecurityHelper;
 import com.monitoring.server.security.SecurityAnnotations.RequiresOperator;
 import com.monitoring.server.service.interfaces.DatabaseService;
@@ -34,7 +35,6 @@ import com.vaadin.flow.theme.lumo.LumoUtility;
 @PageTitle("Bases de Datos Monitoreadas")
 @Route(value = "databases", layout = MainLayout.class)
 @RequiresOperator // Requires OPERATOR or higher (ADMIN)
-
 public class DatabaseView extends VerticalLayout {
 
     private final DatabaseService databaseService;
@@ -53,26 +53,36 @@ public class DatabaseView extends VerticalLayout {
         this.connectionTester = connectionTester;
         this.securityHelper = securityHelper;
         
-        addClassName("database-view");
-        setSizeFull();
-        
-        add(createTitle());
-        
-        configureGrid();
-        
-        // Only show form for sysadmin
-        if (securityHelper.canManageDatabases()) {
-            configureForm();
-            add(createToolbar());
-            add(createContent());
-            closeEditor();
-        } else {
-            // Read-only view for operators
-            add(createReadOnlyToolbar());
-            add(grid);
+        try {
+            System.out.println("🔧 CONSTRUCTOR DatabaseView - INICIO");
+            
+            addClassName("database-view");
+            setSizeFull();
+            
+            add(createTitle());
+            
+            configureGrid();
+            
+            // Only show form for admin
+            if (securityHelper.canManageDatabases()) {
+                configureForm();
+                add(createToolbar());
+                add(createContent());
+                closeEditor();
+            } else {
+                // Read-only view for operators
+                add(createReadOnlyToolbar());
+                add(grid);
+            }
+            
+            updateList();
+            
+            System.out.println("🔧 CONSTRUCTOR DatabaseView - ÉXITO");
+        } catch (Exception e) {
+            System.err.println("❌ ERROR EN DatabaseView: " + e.getMessage());
+            e.printStackTrace();
+            add(new H2("Error: " + e.getMessage()));
         }
-        
-        updateList();
     }
 
     /**
@@ -139,7 +149,7 @@ public class DatabaseView extends VerticalLayout {
         
         grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES);
         
-        // Only allow selection for sysadmin
+        // Only allow selection for admin
         if (securityHelper.canManageDatabases()) {
             grid.asSingleSelect().addValueChangeListener(e -> {
                 if (e.getValue() != null) {
@@ -163,7 +173,7 @@ public class DatabaseView extends VerticalLayout {
         
         actions.add(testButton);
         
-        // Edit and delete buttons only for sysadmin
+        // Edit and delete buttons only for admin
         if (securityHelper.canManageDatabases()) {
             Button editButton = new Button(new Icon(VaadinIcon.EDIT));
             editButton.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_TERTIARY);
@@ -182,7 +192,7 @@ public class DatabaseView extends VerticalLayout {
     }
 
     /**
-     * Configura el formulario de edición (solo para sysadmin).
+     * Configura el formulario de edición (solo para admin).
      */
     private void configureForm() {
         form = new DatabaseForm(databaseService, connectionTester);
@@ -194,7 +204,7 @@ public class DatabaseView extends VerticalLayout {
     }
 
     /**
-     * Crea la barra de herramientas para sysadmin.
+     * Crea la barra de herramientas para admin.
      */
     private Component createToolbar() {
         Button addButton = new Button("Agregar BD", new Icon(VaadinIcon.PLUS));
@@ -224,7 +234,7 @@ public class DatabaseView extends VerticalLayout {
     }
 
     /**
-     * Crea el contenido principal (tabla y formulario) para sysadmin.
+     * Crea el contenido principal (tabla y formulario) para admin.
      */
     private Component createContent() {
         HorizontalLayout content = new HorizontalLayout(grid, form);
@@ -239,7 +249,13 @@ public class DatabaseView extends VerticalLayout {
      * Actualiza la lista de bases de datos.
      */
     private void updateList() {
-        grid.setItems(databaseService.findAll());
+        try {
+            grid.setItems(databaseService.findAll());
+        } catch (Exception e) {
+            System.err.println("❌ Error cargando bases de datos: " + e.getMessage());
+            Notification.show("Error cargando datos")
+                .addThemeVariants(NotificationVariant.LUMO_ERROR);
+        }
     }
 
     /**
@@ -254,7 +270,7 @@ public class DatabaseView extends VerticalLayout {
     }
 
     /**
-     * Abre el editor para agregar una nueva base de datos (solo sysadmin).
+     * Abre el editor para agregar una nueva base de datos (solo admin).
      */
     private void addDatabase() {
         if (!securityHelper.canManageDatabases()) {
@@ -270,7 +286,7 @@ public class DatabaseView extends VerticalLayout {
     }
 
     /**
-     * Abre el editor para editar una base de datos existente (solo sysadmin).
+     * Abre el editor para editar una base de datos existente (solo admin).
      */
     private void editDatabase(Database database) {
         if (!securityHelper.canManageDatabases()) {
@@ -287,7 +303,7 @@ public class DatabaseView extends VerticalLayout {
     }
 
     /**
-     * Guarda una base de datos (solo sysadmin).
+     * Guarda una base de datos (solo admin).
      */
     private void saveDatabase(DatabaseForm.SaveEvent event) {
         if (!securityHelper.canManageDatabases()) {
@@ -309,7 +325,7 @@ public class DatabaseView extends VerticalLayout {
     }
 
     /**
-     * Elimina una base de datos (solo sysadmin).
+     * Elimina una base de datos (solo admin).
      */
     private void deleteDatabase(Database database) {
         if (!securityHelper.canManageDatabases()) {
@@ -331,7 +347,7 @@ public class DatabaseView extends VerticalLayout {
     }
 
     /**
-     * Prueba la conexión a una base de datos (disponible para operadores y sysadmin).
+     * Prueba la conexión a una base de datos (disponible para operadores y admin).
      */
     private void testConnection(Database database) {
         try {

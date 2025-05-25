@@ -6,7 +6,7 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import com.monitoring.server.data.entity.AlertConfiguration;
-import com.monitoring.server.security.MenuSecurityHelper;
+import com.monitoring.server.security.Auth0SecurityHelper;
 import com.monitoring.server.security.SecurityAnnotations.RequiresOperator;
 import com.monitoring.server.service.interfaces.AlertConfigService;
 import com.monitoring.server.views.MainLayout;
@@ -22,12 +22,11 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.textfield.NumberField;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.server.auth.AnonymousAllowed;
 import com.vaadin.flow.theme.lumo.LumoUtility;
 
 /**
  * Vista para configurar los umbrales de alertas del sistema con seguridad basada en roles.
- * SYSADMIN: Puede modificar configuraciones
+ * ADMIN: Puede modificar configuraciones
  * OPERATOR: Solo lectura
  */
 @PageTitle("Configuración de Umbrales de Alerta")
@@ -36,35 +35,45 @@ import com.vaadin.flow.theme.lumo.LumoUtility;
 public class AlertConfigView extends VerticalLayout {
 
     private final AlertConfigService alertConfigService;
-    private final MenuSecurityHelper securityHelper;
+    private final Auth0SecurityHelper securityHelper;
     private final Map<String, NumberField> thresholdFields = new HashMap<>();
     
     /**
      * Constructor de la vista de configuración de alertas.
      */
     public AlertConfigView(@Autowired AlertConfigService alertConfigService,
-                          @Autowired MenuSecurityHelper securityHelper) {
+                          @Autowired Auth0SecurityHelper securityHelper) {
         this.alertConfigService = alertConfigService;
         this.securityHelper = securityHelper;
         
-        addClassName("alert-config-view");
-        setSizeFull();
-        setSpacing(true);
-        setPadding(true);
-        
-        add(createTitle());
-        add(createConfigForm());
-        
-        // Only show save button for sysadmin
-        if (securityHelper.canConfigureAlerts()) {
-            add(createSaveButton());
+        try {
+            System.out.println("⚙️ CONSTRUCTOR AlertConfigView - INICIO");
+            
+            addClassName("alert-config-view");
+            setSizeFull();
+            setSpacing(true);
+            setPadding(true);
+            
+            add(createTitle());
+            add(createConfigForm());
+            
+            // Only show save button for admin
+            if (securityHelper.canConfigureAlerts()) {
+                add(createSaveButton());
+            }
+            
+            // Inicializar configuraciones por defecto si no existen
+            alertConfigService.initDefaultConfigurations();
+            
+            // Cargar los valores actuales
+            loadCurrentValues();
+            
+            System.out.println("⚙️ CONSTRUCTOR AlertConfigView - ÉXITO");
+        } catch (Exception e) {
+            System.err.println("❌ ERROR EN AlertConfigView: " + e.getMessage());
+            e.printStackTrace();
+            add(new H2("Error: " + e.getMessage()));
         }
-        
-        // Inicializar configuraciones por defecto si no existen
-        alertConfigService.initDefaultConfigurations();
-        
-        // Cargar los valores actuales
-        loadCurrentValues();
     }
     
     /**
@@ -158,7 +167,7 @@ public class AlertConfigView extends VerticalLayout {
     }
     
     /**
-     * Crea el botón para guardar la configuración (solo para sysadmin).
+     * Crea el botón para guardar la configuración (solo para admin).
      */
     private Component createSaveButton() {
         Button saveButton = new Button("Guardar Configuración");
@@ -172,25 +181,29 @@ public class AlertConfigView extends VerticalLayout {
      * Carga los valores actuales de configuración desde la base de datos.
      */
     private void loadCurrentValues() {
-        for (String componentName : thresholdFields.keySet()) {
-            AlertConfiguration config = alertConfigService.findFirstByComponentName(componentName);
-            if (config != null) {
-                // Determinar qué valor de umbral usar según el componente
-                double value = 80.0; // Valor por defecto
-                if ("CPU".equals(componentName)) {
-                    value = config.getCpuThreshold();
-                } else if ("Memory".equals(componentName)) {
-                    value = config.getMemoryThreshold();
-                } else if ("Disk".equals(componentName)) {
-                    value = config.getDiskThreshold();
+        try {
+            for (String componentName : thresholdFields.keySet()) {
+                AlertConfiguration config = alertConfigService.findFirstByComponentName(componentName);
+                if (config != null) {
+                    // Determinar qué valor de umbral usar según el componente
+                    double value = 80.0; // Valor por defecto
+                    if ("CPU".equals(componentName)) {
+                        value = config.getCpuThreshold();
+                    } else if ("Memory".equals(componentName)) {
+                        value = config.getMemoryThreshold();
+                    } else if ("Disk".equals(componentName)) {
+                        value = config.getDiskThreshold();
+                    }
+                    thresholdFields.get(componentName).setValue(value);
                 }
-                thresholdFields.get(componentName).setValue(value);
             }
+        } catch (Exception e) {
+            System.err.println("❌ Error cargando configuraciones: " + e.getMessage());
         }
     }
     
     /**
-     * Guarda la configuración en la base de datos (solo para sysadmin).
+     * Guarda la configuración en la base de datos (solo para admin).
      */
     private void saveConfiguration() {
         if (!securityHelper.canConfigureAlerts()) {

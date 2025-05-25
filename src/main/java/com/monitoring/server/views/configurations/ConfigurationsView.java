@@ -3,7 +3,7 @@ package com.monitoring.server.views.configurations;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.vaadin.lineawesome.LineAwesomeIconUrl;
 
-import com.monitoring.server.security.Auth0SecurityHelper;
+import com.monitoring.server.security.MenuSecurityHelper; // ✅ CORRECTO: Usar MenuSecurityHelper
 import com.monitoring.server.security.SecurityAnnotations.RequiresOperator;
 import com.monitoring.server.views.MainLayout;
 import com.vaadin.flow.component.Composite;
@@ -32,19 +32,28 @@ import com.vaadin.flow.theme.lumo.LumoUtility.Gap;
 @Menu(order = 3, icon = LineAwesomeIconUrl.COG_SOLID)
 public class ConfigurationsView extends Composite<VerticalLayout> {
 
-    @Autowired
-    private Auth0SecurityHelper auth0SecurityHelper;
+    private MenuSecurityHelper securityHelper; // ✅ CORRECTO: Usar MenuSecurityHelper
 
     private TextField cpuThresholdField;
     private TextField ramThresholdField;
     private TextField diskThresholdField;
     private Button saveButton;
 
-    public ConfigurationsView(@Autowired Auth0SecurityHelper auth0SecurityHelper) {
-        this.auth0SecurityHelper = auth0SecurityHelper;
-        initializeComponents();
-        setupLayout();
-        setupPermissions();
+    public ConfigurationsView(@Autowired MenuSecurityHelper securityHelper) { // ✅ CORRECTO
+        try {
+            System.out.println("🔧 CONSTRUCTOR ConfigurationsView - INICIO");
+            
+            this.securityHelper = securityHelper;
+            initializeComponents();
+            setupLayout();
+            setupPermissions();
+            
+            System.out.println("🔧 CONSTRUCTOR ConfigurationsView - ÉXITO");
+        } catch (Exception e) {
+            System.err.println("❌ ERROR EN CONFIGURATIONSVIEW: " + e.getMessage());
+            e.printStackTrace();
+            getContent().add(new H1("Error en ConfigurationsView: " + e.getMessage()));
+        }
     }
 
     private void initializeComponents() {
@@ -117,7 +126,7 @@ public class ConfigurationsView extends Composite<VerticalLayout> {
     }
 
     private void setupPermissions() {
-        boolean isReadOnly = !auth0SecurityHelper.canConfigureAlerts();
+        boolean isReadOnly = !securityHelper.canConfigureAlerts();
         
         cpuThresholdField.setReadOnly(isReadOnly);
         ramThresholdField.setReadOnly(isReadOnly);
@@ -144,10 +153,10 @@ public class ConfigurationsView extends Composite<VerticalLayout> {
         Span statusText = new Span();
         Span userInfo = new Span();
 
-        if (auth0SecurityHelper.canConfigureAlerts()) {
+        if (securityHelper.canConfigureAlerts()) {
             statusIcon.setText("✅");
             statusText.setText("Modo Administrador - Acceso completo");
-            userInfo.setText("Usuario: " + auth0SecurityHelper.getCurrentUserName() + " | Rol: " + auth0SecurityHelper.getCurrentUserRoleDisplay());
+            userInfo.setText("Usuario: " + securityHelper.getCurrentUserName() + " | Rol: " + securityHelper.getCurrentUserRoleDisplay());
             
             indicator.getStyle()
                 .set("background", "#d4edda")
@@ -156,7 +165,7 @@ public class ConfigurationsView extends Composite<VerticalLayout> {
         } else {
             statusIcon.setText("👁️");
             statusText.setText("Modo Solo Lectura");
-            userInfo.setText("Usuario: " + auth0SecurityHelper.getCurrentUserName() + " | Rol: " + auth0SecurityHelper.getCurrentUserRoleDisplay());
+            userInfo.setText("Usuario: " + securityHelper.getCurrentUserName() + " | Rol: " + securityHelper.getCurrentUserRoleDisplay());
             
             indicator.getStyle()
                 .set("background", "#fff3cd")
@@ -173,7 +182,7 @@ public class ConfigurationsView extends Composite<VerticalLayout> {
     }
 
     private void saveConfiguration() {
-        if (!auth0SecurityHelper.canConfigureAlerts()) {
+        if (!securityHelper.canConfigureAlerts()) {
             Notification notification = Notification.show(
                 "❌ No tienes permisos para modificar la configuración. Se requiere rol de Administrador."
             );
