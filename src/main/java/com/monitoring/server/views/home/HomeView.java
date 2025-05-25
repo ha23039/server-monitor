@@ -25,10 +25,10 @@ import com.vaadin.flow.router.RouteAlias;
 @PageTitle("Inicio - Server Monitor")
 @Route(value = "", layout = MainLayout.class)
 @RouteAlias(value = "home", layout = MainLayout.class)
-//@RequiresAuth
+@RequiresAuth
 public class HomeView extends VerticalLayout {
 
-    private  MenuSecurityHelper securityHelper; // ✅ CORRECTO: Usar MenuSecurityHelper
+    private MenuSecurityHelper securityHelper; // ✅ CORRECTO: Usar MenuSecurityHelper
 
     // Paleta de colores sugerida
     private static final String COLOR_PRIMARY = "#3B82F6"; // Azul principal
