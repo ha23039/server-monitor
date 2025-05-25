@@ -20,6 +20,7 @@ import com.vaadin.flow.server.VaadinServiceInitListener;
  * Security Interceptor for Vaadin Views
  * Handles route-level security based on custom annotations
  * Works in conjunction with Spring Security method-level security
+ * CORREGIDO: Implementa jerarquía de roles correctamente
  */
 @Component
 public class SecurityInterceptor implements VaadinServiceInitListener {
@@ -47,15 +48,18 @@ public class SecurityInterceptor implements VaadinServiceInitListener {
         
         System.out.println("🔍 Usuario autenticado: " + isAuthenticated);
         
-        // Debug de roles
+        // Debug de roles - CORREGIDO
         if (auth != null && auth.getAuthorities() != null) {
             System.out.println("🔍 Roles del usuario:");
             auth.getAuthorities().forEach(authority -> 
                 System.out.println("   - " + authority.getAuthority())
             );
+            
+            // JERARQUÍA CORRECTA
             System.out.println("🔍 Tiene ROLE_admin: " + hasRole("ROLE_admin"));
-            System.out.println("🔍 Tiene ROLE_operator: " + hasRole("ROLE_operator"));
-            System.out.println("🔍 Tiene ROLE_viewer: " + hasRole("ROLE_viewer"));
+            System.out.println("🔍 Tiene privilegios admin: " + hasAdminPrivileges());
+            System.out.println("🔍 Tiene privilegios operator: " + hasOperatorPrivileges());
+            System.out.println("🔍 Tiene privilegios viewer: " + hasViewerPrivileges());
         }
         
         // Verificar anotaciones de seguridad
@@ -77,7 +81,7 @@ public class SecurityInterceptor implements VaadinServiceInitListener {
                 event.rerouteTo("login");
                 return;
             }
-            if (!hasRole("ROLE_admin") && !hasRole("ROLE_operator")) {
+            if (!hasOperatorPrivileges()) {
                 System.out.println("❌ Redirigiendo a access-denied - sin permisos de operator");
                 event.rerouteTo("access-denied");
                 return;
@@ -92,7 +96,7 @@ public class SecurityInterceptor implements VaadinServiceInitListener {
                 event.rerouteTo("login");
                 return;
             }
-            if (!hasRole("ROLE_admin")) {
+            if (!hasAdminPrivileges()) {
                 System.out.println("❌ Redirigiendo a access-denied - sin permisos de admin");
                 event.rerouteTo("access-denied");
                 return;
@@ -109,5 +113,21 @@ public class SecurityInterceptor implements VaadinServiceInitListener {
                 .anyMatch(authority -> authority.equals(role));
         }
         return false;
+    }
+    
+    // JERARQUÍA CORRECTA - ADMIN tiene todos los privilegios
+    private boolean hasAdminPrivileges() {
+        return hasRole("ROLE_admin");
+    }
+    
+    // OPERATOR incluye ADMIN
+    private boolean hasOperatorPrivileges() {
+        return hasRole("ROLE_admin") || hasRole("ROLE_operator");
+    }
+    
+    // VIEWER incluye ADMIN y OPERATOR
+    private boolean hasViewerPrivileges() {
+        return hasRole("ROLE_admin") || hasRole("ROLE_operator") || 
+               hasRole("ROLE_viewer") || hasRole("ROLE_user");
     }
 }

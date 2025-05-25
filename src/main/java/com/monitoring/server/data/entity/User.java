@@ -17,6 +17,7 @@ import jakarta.persistence.Table;
 /**
  * Entidad User para almacenar información de usuarios autenticados con Auth0
  * Roles completos para coincidir con Auth0: admin, operator, viewer, user
+ * NOTA: El check constraint se creará automáticamente por el enum o mediante migración SQL
  */
 @Entity
 @Table(name = "users")
@@ -45,7 +46,7 @@ public class User implements Serializable {
     
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false)
-    private UserRole role = UserRole.VIEWER; // Cambiado: USER -> VIEWER como default
+    private UserRole role = UserRole.VIEWER; // Default: VIEWER para máxima seguridad
     
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
@@ -77,16 +78,35 @@ public class User implements Serializable {
         }
         
         public static UserRole fromString(String roleName) {
+            if (roleName == null) {
+                return VIEWER; // Default seguro
+            }
+            
             for (UserRole role : UserRole.values()) {
                 if (role.getRoleName().equalsIgnoreCase(roleName)) {
                     return role;
                 }
             }
-            // Si recibe "user", mapear a VIEWER
-            if ("user".equalsIgnoreCase(roleName)) {
-                return VIEWER;
+            
+            // Mapeos especiales
+            String normalizedRole = roleName.toLowerCase().trim();
+            switch (normalizedRole) {
+                case "administrator":
+                case "system-admin":
+                    return ADMIN;
+                case "ops":
+                case "sysadmin":
+                case "system-operator":
+                    return OPERATOR;
+                case "readonly":
+                case "read-only":
+                case "monitor":
+                    return VIEWER;
+                case "user":
+                    return USER; // Mantener USER como rol separado
+                default:
+                    return VIEWER; // Default seguro para roles desconocidos
             }
-            return VIEWER; // Default role
         }
         
         // Método para obtener el display name
@@ -109,6 +129,22 @@ public class User implements Serializable {
         public String getSpringRole() {
             return "ROLE_" + this.roleName;
         }
+        
+        // Método para obtener descripción del rol
+        public String getDescription() {
+            switch (this) {
+                case ADMIN:
+                    return "Acceso completo al sistema: usuarios, configuración, todos los monitoreos";
+                case OPERATOR:
+                    return "Operaciones de monitoreo: bases de datos, alertas, configuraciones";
+                case VIEWER:
+                    return "Solo lectura: dashboards, métricas básicas";
+                case USER:
+                    return "Usuario básico: acceso limitado a funciones esenciales";
+                default:
+                    return "";
+            }
+        }
     }
     
     // Constructors
@@ -121,7 +157,7 @@ public class User implements Serializable {
         this.auth0Subject = auth0Subject;
         this.email = email;
         this.name = name;
-        this.role = role;
+        this.role = role != null ? role : UserRole.VIEWER; // Validación adicional
     }
     
     @PrePersist
@@ -130,6 +166,11 @@ public class User implements Serializable {
             this.createdAt = LocalDateTime.now();
         }
         this.updatedAt = LocalDateTime.now();
+        
+        // Validación de seguridad
+        if (this.role == null) {
+            this.role = UserRole.VIEWER;
+        }
     }
     
     @PreUpdate
@@ -191,7 +232,7 @@ public class User implements Serializable {
     }
     
     public void setRole(UserRole role) {
-        this.role = role;
+        this.role = role != null ? role : UserRole.VIEWER; // Validación adicional
     }
     
     public boolean isActive() {
@@ -243,7 +284,7 @@ public class User implements Serializable {
         return role == UserRole.USER;
     }
     
-    // Métodos de permisos jerárquicos
+    // Métodos de permisos jerárquicos - JERARQUÍA CLARA
     public boolean hasAdminPrivileges() {
         return role == UserRole.ADMIN;
     }
@@ -257,9 +298,9 @@ public class User implements Serializable {
                role == UserRole.VIEWER || role == UserRole.USER;
     }
     
-    // Métodos de permisos específicos
+    // Métodos de permisos específicos del sistema
     public boolean canManageSystem() {
-        return role == UserRole.ADMIN;
+        return hasAdminPrivileges();
     }
     
     public boolean canViewMetrics() {
@@ -276,6 +317,28 @@ public class User implements Serializable {
     
     public boolean canManageUsers() {
         return hasAdminPrivileges();
+    }
+    
+    public boolean canExportData() {
+        return hasOperatorPrivileges();
+    }
+    
+    public boolean canViewSystemLogs() {
+        return hasOperatorPrivileges();
+    }
+    
+    public boolean canCreateCustomDashboards() {
+        return hasOperatorPrivileges();
+    }
+    
+    // Método para obtener todos los permisos como lista (útil para debug)
+    public String getPermissionsSummary() {
+        StringBuilder permissions = new StringBuilder();
+        permissions.append("Rol: ").append(role.getDisplayName()).append(" | ");
+        permissions.append("Admin: ").append(hasAdminPrivileges()).append(" | ");
+        permissions.append("Operator: ").append(hasOperatorPrivileges()).append(" | ");
+        permissions.append("Viewer: ").append(hasViewerPrivileges());
+        return permissions.toString();
     }
     
     @Override
