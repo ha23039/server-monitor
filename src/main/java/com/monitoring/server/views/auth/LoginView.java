@@ -176,6 +176,7 @@ public class LoginView extends VerticalLayout {
         });
 
         loginButton.addClickListener(e -> {
+            // Login automático - recuerda última cuenta
             UI.getCurrent().getPage().setLocation("/oauth2/authorization/auth0");
         });
 
@@ -270,7 +271,7 @@ public class LoginView extends VerticalLayout {
         });
 
         googleButton.addClickListener(e -> {
-            UI.getCurrent().getPage().setLocation("/oauth2/authorization/auth0?connection=google-oauth2");
+            UI.getCurrent().getPage().setLocation("/oauth2/authorization/auth0?connection=google-oauth2&prompt=select_account");
         });
 
         return googleButton;

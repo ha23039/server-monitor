@@ -12,7 +12,7 @@ import org.springframework.security.oauth2.core.oidc.IdTokenClaimNames;
 
 /**
  * ✅ LIMPIO: Solo configuración de cliente Auth0
- * Eliminar cualquier SecurityFilterChain de aquí
+ * 
  */
 @Configuration
 public class VaadinSecurityConfig {

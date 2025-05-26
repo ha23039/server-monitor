@@ -12,7 +12,5 @@ public class TestView extends VerticalLayout {
     
     public TestView() {
         add(new H1("🎉 ¡APLICACIÓN FUNCIONANDO!"));
-        add(new Paragraph("Si ves esto, el deploy está correcto."));
-        add(new Paragraph("Ahora solo necesitamos arreglar las rutas."));
     }
 }
