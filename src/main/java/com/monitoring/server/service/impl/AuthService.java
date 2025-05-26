@@ -22,7 +22,7 @@ import com.monitoring.server.data.repository.UserRepository;
 
 /**
  * Service for handling authentication and user management
- * SISTEMA UNIFICADO: admin, operator, viewer, user
+ * ✅ DEFINITIVO: Roles 100% desde Auth0, sin SYSADMIN, sin hardcodeos
  */
 @Service
 @Transactional
@@ -89,16 +89,12 @@ public class AuthService {
     }
 
     /**
-     * Check if current user is administrator
+     * ✅ DEFINITIVO: Check if current user is administrator (Solo ADMIN real)
      */
-   // public boolean isAdmin() {
-     //   return getCurrentUserRole() == UserRole.ADMIN;
-   // }
-   public boolean isAdmin() {
-    UserRole role = getCurrentUserRole();
-    //  TEMPORAL: OPERATOR actúa como admin
-    return role == UserRole.ADMIN || role == UserRole.OPERATOR;
-}
+    public boolean isAdmin() {
+        UserRole role = getCurrentUserRole();
+        return role == UserRole.ADMIN; // ✅ Solo ADMIN, sin OPERATOR temporal
+    }
 
     /**
      * Check if current user is operator or admin
@@ -121,7 +117,7 @@ public class AuthService {
      * Check if current user can manage system
      */
     public boolean canManageSystem() {
-        return isAdmin();
+        return isAdmin(); // Solo ADMIN
     }
 
     /**
@@ -139,15 +135,10 @@ public class AuthService {
     }
 
     /**
-     * Check if current user can manage users
+     * ✅ DEFINITIVO: Check if current user can manage users (Solo ADMIN real)
      */
-   // public boolean canManageUsers() {
-  //      return isAdmin();
-  //  }
     public boolean canManageUsers() {
-        UserRole role = getCurrentUserRole();
-        // ✅ TEMPORAL: Permitir OPERATOR gestionar usuarios
-        return role == UserRole.ADMIN || role == UserRole.OPERATOR;
+        return isAdmin(); // ✅ Solo ADMIN, sin OPERATOR temporal
     }
 
     /**
@@ -172,57 +163,57 @@ public class AuthService {
     }
 
     /**
-     * Create or update user from Auth0 OIDC token
+     * ✅ DEFINITIVO: Create or update user from Auth0 OIDC token
+     * Respeta 100% Auth0, sin hardcodeos, sin SYSADMIN
      */
+    public User createOrUpdateUser(OidcUser oidcUser) {
+        String auth0Subject = oidcUser.getSubject();
+        String email = oidcUser.getEmail();
+        String name = oidcUser.getFullName();
+        String nickname = oidcUser.getClaimAsString("nickname");
+        String picture = oidcUser.getClaimAsString("picture");
+        
+        logger.info("🔄 Sincronizando usuario OIDC: {} (subject: {})", email, auth0Subject);
+        
+        // ✅ DEFINITIVO: Extraer rol DIRECTAMENTE de Auth0
+        UserRole roleFromAuth0 = extractUserRoleFromOidc(oidcUser);
+        logger.info("🏷️ Rol extraído de Auth0 para {}: {}", email, roleFromAuth0);
 
-        public User createOrUpdateUser(OidcUser oidcUser) {
-            String auth0Subject = oidcUser.getSubject();
-            String email = oidcUser.getEmail();
-            String name = oidcUser.getFullName();
-            String nickname = oidcUser.getClaimAsString("nickname");
-            String picture = oidcUser.getClaimAsString("picture");
+        Optional<User> existingUser = userRepository.findByAuth0Subject(auth0Subject);
+        
+        User user;
+        if (existingUser.isPresent()) {
+            user = existingUser.get();
+            logger.info("👤 Actualizando usuario existente: {}", email);
             
-            logger.info("🔄 Sincronizando usuario OIDC: {} (subject: {})", email, auth0Subject);
-            
-            // ✅ CAMBIO CRÍTICO: SIEMPRE extraer rol actualizado de Auth0
-            UserRole currentRoleFromAuth0 = extractUserRoleFromOidc(oidcUser);
-            logger.info("🏷️  Rol extraído de Auth0 para {}: {}", email, currentRoleFromAuth0);
-
-            Optional<User> existingUser = userRepository.findByAuth0Subject(auth0Subject);
-            
-            User user;
-            if (existingUser.isPresent()) {
-                user = existingUser.get();
-                logger.info("👤 Actualizando usuario existente: {}", email);
-                
-                // ✅ CAMBIO CRÍTICO: Verificar si el rol cambió en Auth0
-                if (!user.getRole().equals(currentRoleFromAuth0)) {
-                    logger.info("🔄 ROL ACTUALIZADO para {}: {} → {}", 
-                            email, user.getRole(), currentRoleFromAuth0);
-                }
-            } else {
-                user = new User(auth0Subject, email, name, currentRoleFromAuth0);
-                logger.info("🆕 Creando nuevo usuario: {}", email);
+            // Verificar si el rol cambió en Auth0
+            if (!user.getRole().equals(roleFromAuth0)) {
+                logger.info("🔄 ROL ACTUALIZADO para {}: {} → {}", 
+                        email, user.getRole(), roleFromAuth0);
             }
-            
-            try {
-                // ✅ CAMBIO CRÍTICO: SIEMPRE actualizar el rol desde Auth0
-                user.setName(name);
-                user.setNickname(nickname);
-                user.setPicture(picture);
-                user.setRole(currentRoleFromAuth0);  // ✅ SIEMPRE actualizar rol
-                user.setLastLogin(LocalDateTime.now());
-                user.setUpdatedAt(LocalDateTime.now());
-                
-                User savedUser = userRepository.save(user);
-                logger.info("✅ Usuario guardado con ID: {} y rol: {}", savedUser.getId(), savedUser.getRole());
-                
-                return savedUser;
-            } catch (Exception e) {
-                logger.error("❌ Error sincronizando usuario: {}", e.getMessage());
-                throw e;
-            }
+        } else {
+            user = new User(auth0Subject, email, name, roleFromAuth0);
+            logger.info("🆕 Creando nuevo usuario: {}", email);
         }
+        
+        try {
+            // ✅ Actualizar datos del usuario con rol de Auth0
+            user.setName(name);
+            user.setNickname(nickname);
+            user.setPicture(picture);
+            user.setRole(roleFromAuth0); // ✅ Rol 100% desde Auth0
+            user.setLastLogin(LocalDateTime.now());
+            user.setUpdatedAt(LocalDateTime.now());
+            
+            User savedUser = userRepository.save(user);
+            logger.info("✅ Usuario guardado con ID: {} y rol: {}", savedUser.getId(), savedUser.getRole());
+            
+            return savedUser;
+        } catch (Exception e) {
+            logger.error("❌ Error sincronizando usuario: {}", e.getMessage());
+            throw e;
+        }
+    }
 
     /**
      * Create or update user from Auth0 JWT token (for APIs)
@@ -236,9 +227,9 @@ public class AuthService {
         
         logger.info("🔄 Sincronizando usuario JWT: {} (subject: {})", email, auth0Subject);
         
-        // Extract roles from Auth0 custom claim
-        UserRole userRole = extractUserRoleFromJwt(jwt);
-        logger.info("🏷️  Rol extraído para {}: {}", email, userRole);
+        // ✅ Rol extraído directamente de Auth0
+        UserRole roleFromAuth0 = extractUserRoleFromJwt(jwt);
+        logger.info("🏷️ Rol extraído para {}: {}", email, roleFromAuth0);
 
         Optional<User> existingUser = userRepository.findByAuth0Subject(auth0Subject);
         
@@ -246,13 +237,13 @@ public class AuthService {
         if (existingUser.isPresent()) {
             user = existingUser.get();
         } else {
-            user = new User(auth0Subject, email, name, userRole);
+            user = new User(auth0Subject, email, name, roleFromAuth0);
         }
         
         user.setName(name);
         user.setNickname(nickname);
         user.setPicture(picture);
-        user.setRole(userRole);
+        user.setRole(roleFromAuth0); // ✅ Rol 100% desde Auth0
         user.setLastLogin(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
         
@@ -260,57 +251,51 @@ public class AuthService {
     }
 
     /**
-     * Extract user role from Auth0 OIDC user
+     * ✅ Extract user role from Auth0 OIDC user - SIN HARDCODEOS
      */
-        private UserRole extractUserRoleFromOidc(OidcUser oidcUser) {
-            Map<String, Object> claims = oidcUser.getClaims();
-            String email = oidcUser.getEmail();
-            
-            logger.debug("🔍 TODOS LOS CLAIMS para {}: {}", email, claims);
-            
-            // ✅ REGLA ESPECIAL PARA USUARIO DE PRUEBA - PRIORIDAD MÁXIMA
-            if ("ha23039@ues.edu.sv".equals(email)) {
-                logger.info("🎓 Usuario de prueba detectado - asignando rol ADMIN");
-                return UserRole.ADMIN;
-            }
-            
-            // Buscar en el namespace personalizado de Auth0
-            String rolesKey = "https://servermonitor.api/roles";
-            Object rolesObj = claims.get(rolesKey);
-            
-            if (rolesObj instanceof Collection) {
-                @SuppressWarnings("unchecked")
-                Collection<String> roles = (Collection<String>) rolesObj;
-                logger.info("✅ Roles extraídos del namespace custom para {}: {}", email, roles);
-                return extractUserRole(roles);
-            } else if (rolesObj instanceof List) {
-                @SuppressWarnings("unchecked")
-                List<String> roles = (List<String>) rolesObj;
-                logger.info("✅ Roles extraídos del namespace custom para {}: {}", email, roles);
-                return extractUserRole(roles);
-            }
-            
-            // Fallback: buscar en otros claims
-            Object authoritiesObj = claims.get("authorities");
-            if (authoritiesObj instanceof Collection) {
-                @SuppressWarnings("unchecked")
-                Collection<String> authorities = (Collection<String>) authoritiesObj;
-                logger.info("✅ Roles extraídos de authorities para {}: {}", email, authorities);
-                return extractUserRole(authorities);
-            }
-            
-            // Fallback final: buscar roles directamente
-            Object directRoles = claims.get("roles");
-            if (directRoles instanceof Collection) {
-                @SuppressWarnings("unchecked")
-                Collection<String> roles = (Collection<String>) directRoles;
-                logger.info("✅ Roles extraídos directamente para {}: {}", email, roles);
-                return extractUserRole(roles);
-            }
-            
-            logger.warn("⚠️ No se encontraron roles para usuario {}, asignando VIEWER", email);
-            return UserRole.VIEWER; // Default
+    private UserRole extractUserRoleFromOidc(OidcUser oidcUser) {
+        Map<String, Object> claims = oidcUser.getClaims();
+        String email = oidcUser.getEmail();
+        
+        logger.debug("🔍 TODOS LOS CLAIMS para {}: {}", email, claims);
+        
+        // Buscar en el namespace personalizado de Auth0
+        String rolesKey = "https://servermonitor.api/roles";
+        Object rolesObj = claims.get(rolesKey);
+        
+        if (rolesObj instanceof Collection) {
+            @SuppressWarnings("unchecked")
+            Collection<String> roles = (Collection<String>) rolesObj;
+            logger.info("✅ Roles extraídos del namespace custom para {}: {}", email, roles);
+            return extractUserRole(roles);
+        } else if (rolesObj instanceof List) {
+            @SuppressWarnings("unchecked")
+            List<String> roles = (List<String>) rolesObj;
+            logger.info("✅ Roles extraídos del namespace custom para {}: {}", email, roles);
+            return extractUserRole(roles);
         }
+        
+        // Fallback: buscar en otros claims
+        Object authoritiesObj = claims.get("authorities");
+        if (authoritiesObj instanceof Collection) {
+            @SuppressWarnings("unchecked")
+            Collection<String> authorities = (Collection<String>) authoritiesObj;
+            logger.info("✅ Roles extraídos de authorities para {}: {}", email, authorities);
+            return extractUserRole(authorities);
+        }
+        
+        // Fallback final: buscar roles directamente
+        Object directRoles = claims.get("roles");
+        if (directRoles instanceof Collection) {
+            @SuppressWarnings("unchecked")
+            Collection<String> roles = (Collection<String>) directRoles;
+            logger.info("✅ Roles extraídos directamente para {}: {}", email, roles);
+            return extractUserRole(roles);
+        }
+        
+        logger.warn("⚠️ No se encontraron roles para usuario {}, asignando VIEWER", email);
+        return UserRole.VIEWER; // Default
+    }
 
     /**
      * Extract user role from Auth0 JWT token
@@ -332,33 +317,39 @@ public class AuthService {
     }
 
     /**
-     * Extract user role from Auth0 roles claim - SISTEMA COMPLETO
-     * 🔧 CORREGIDO: Usa UserRole.fromString() para conversión correcta
+     * ✅ Extract user role from Auth0 roles claim - DEFINITIVO
+     * Solo admin, operator, viewer, user (minúsculas)
      */
     private UserRole extractUserRole(Collection<String> roles) {
         if (roles == null || roles.isEmpty()) {
             return UserRole.VIEWER;
         }
 
-        logger.info("🔍 ROLES EXTRAÍDOS: {}", roles);
+        logger.info("🔍 ROLES EXTRAÍDOS DE AUTH0: {}", roles);
 
-        // Prioridad: admin > operator > viewer > user
-        // 🔧 CAMBIO CRÍTICO: usar UserRole.fromString() para conversión correcta
+        // ✅ Prioridad jerárquica: admin > operator > viewer > user
+        // ✅ DEFINITIVO: Solo minúsculas, sin SYSADMIN
         if (roles.contains("admin")) {
-            return UserRole.ADMIN;  // ✅ Usar enum directo
+            return UserRole.ADMIN;  // ✅ Solo 'admin', nunca 'sysadmin'
         }
         if (roles.contains("operator")) {
-            return UserRole.OPERATOR;  // ✅ Usar enum directo
+            return UserRole.OPERATOR;
         }
         if (roles.contains("viewer")) {
-            return UserRole.VIEWER;  // ✅ Usar enum directo
+            return UserRole.VIEWER;
         }
         if (roles.contains("user")) {
-            return UserRole.USER;  // ✅ Usar enum directo
+            return UserRole.USER;
+        }
+
+        // ⚠️ MIGRACIÓN: Si hay SYSADMIN por migración, convertir a ADMIN
+        if (roles.contains("sysadmin") || roles.contains("SYSADMIN")) {
+            logger.warn("🔄 MIGRACIÓN: Convirtiendo SYSADMIN a ADMIN para roles: {}", roles);
+            return UserRole.ADMIN;
         }
 
         logger.warn("⚠️ Roles no reconocidos: {}, asignando VIEWER", roles);
-        return UserRole.VIEWER; // Default
+        return UserRole.VIEWER; // Default seguro
     }
 
     /**
@@ -376,7 +367,7 @@ public class AuthService {
     }
 
     /**
-     * Update user role (only for admin)
+     * ✅ Update user role (only for admin) - SIN RESTRICCIONES HARDCODEADAS
      */
     public User updateUserRole(Long userId, UserRole newRole) {
         if (!isAdmin()) {
@@ -387,6 +378,7 @@ public class AuthService {
         if (userOpt.isPresent()) {
             User user = userOpt.get();
             UserRole oldRole = user.getRole();
+            
             user.setRole(newRole);
             user.setUpdatedAt(LocalDateTime.now());
             
@@ -486,10 +478,12 @@ public class AuthService {
             if (currentUser.isPresent()) {
                 User user = currentUser.get();
                 logger.info("🐛 DB User ID: {}", user.getId());
+                logger.info("🐛 DB User Email: {}", user.getEmail());
                 logger.info("🐛 DB User Role: {}", user.getRole());
                 logger.info("🐛 isAdmin: {}", isAdmin());
                 logger.info("🐛 isOperator: {}", isOperator());
                 logger.info("🐛 isViewer: {}", isViewer());
+                logger.info("🐛 canManageUsers: {}", canManageUsers());
             } else {
                 logger.info("🐛 NO HAY USUARIO EN LA DB");
             }

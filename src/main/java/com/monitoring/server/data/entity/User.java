@@ -16,8 +16,8 @@ import jakarta.persistence.Table;
 
 /**
  * Entidad User para almacenar información de usuarios autenticados con Auth0
- * Roles completos para coincidir con Auth0: admin, operator, viewer, user
- * NOTA: El check constraint se creará automáticamente por el enum o mediante migración SQL
+ * ✅ CORREGIDO: Sin constraint automático de Hibernate
+ * ✅ Roles: admin, operator, viewer, user (minúsculas)
  */
 @Entity
 @Table(name = "users")
@@ -44,8 +44,9 @@ public class User implements Serializable {
     @Column(name = "picture")
     private String picture;
     
+    // ✅ CORREGIDO: Sin constraint automático, solo STRING
     @Enumerated(EnumType.STRING)
-    @Column(name = "role", nullable = false)
+    @Column(name = "role", nullable = false, length = 20)
     private UserRole role = UserRole.VIEWER; // Default: VIEWER para máxima seguridad
     
     @Column(name = "is_active", nullable = false)
@@ -60,12 +61,12 @@ public class User implements Serializable {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
     
-    // Enum COMPLETO para coincidir exactamente con Auth0
+    // ✅ ENUM CORREGIDO: Valores en minúsculas coincidiendo con Auth0
     public enum UserRole {
-        ADMIN("admin"),         // Coincide con Auth0 "admin" 
-        OPERATOR("operator"),   // Coincide con Auth0 "operator"
-        VIEWER("viewer"),       // Coincide con Auth0 "viewer"
-        USER("user");           // Coincide con Auth0 "user" (mapea a viewer)
+        ADMIN("admin"),         // ✅ Auth0: admin
+        OPERATOR("operator"),   // ✅ Auth0: operator  
+        VIEWER("viewer"),       // ✅ Auth0: viewer
+        USER("user");           // ✅ Auth0: user
         
         private final String roleName;
         
@@ -77,25 +78,31 @@ public class User implements Serializable {
             return roleName;
         }
         
+        // ✅ IMPORTANTE: toString() devuelve minúsculas para Hibernate
+        @Override
+        public String toString() {
+            return roleName;
+        }
+        
         public static UserRole fromString(String roleName) {
             if (roleName == null) {
                 return VIEWER; // Default seguro
             }
             
+            // ✅ Coincidencia exacta primero
             for (UserRole role : UserRole.values()) {
                 if (role.getRoleName().equalsIgnoreCase(roleName)) {
                     return role;
                 }
             }
             
-            // Mapeos especiales
+            // ✅ Mapeos especiales - SIN SYSADMIN
             String normalizedRole = roleName.toLowerCase().trim();
             switch (normalizedRole) {
                 case "administrator":
                 case "system-admin":
                     return ADMIN;
                 case "ops":
-                case "sysadmin":
                 case "system-operator":
                     return OPERATOR;
                 case "readonly":
@@ -103,9 +110,12 @@ public class User implements Serializable {
                 case "monitor":
                     return VIEWER;
                 case "user":
-                    return USER; // Mantener USER como rol separado
+                    return USER;
+                // ✅ MIGRACIÓN: Si viene SYSADMIN, convertir a ADMIN
+                case "sysadmin":
+                    return ADMIN;
                 default:
-                    return VIEWER; // Default seguro para roles desconocidos
+                    return VIEWER; // Default seguro
             }
         }
         
