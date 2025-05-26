@@ -69,26 +69,24 @@ public class LoginView extends VerticalLayout {
     private Div createMainContainer() {
         Div container = new Div();
         container.getStyle()
-            .set("background", "white")
-            .set("padding", "3rem")
-            .set("border-radius", "20px")
-            .set("box-shadow", "0 20px 60px rgba(0,0,0,0.3)")
-            .set("backdrop-filter", "blur(10px)")
-            .set("max-width", "500px")
+            .set("background", "rgba(255, 255, 255, 0.95)")
+            .set("backdrop-filter", "blur(20px)")
+            .set("padding", "2.5rem")
+            .set("border-radius", "24px")
+            .set("box-shadow", "0 25px 50px rgba(0,0,0,0.25)")
+            .set("max-width", "420px")
             .set("width", "90%")
             .set("position", "relative")
-            .set("z-index", "10");
+            .set("z-index", "10")
+            .set("border", "1px solid rgba(255,255,255,0.2)");
 
         // Header con logo y título
         VerticalLayout header = createHeader();
         
         // Sección principal de autenticación
         VerticalLayout authSection = createAuthSection();
-        
-        // Información adicional
-        VerticalLayout infoSection = createInfoSection();
 
-        container.add(header, authSection, infoSection);
+        container.add(header, authSection);
         return container;
     }
 
@@ -97,6 +95,7 @@ public class LoginView extends VerticalLayout {
         header.setSpacing(false);
         header.setPadding(false);
         header.setAlignItems(Alignment.CENTER);
+        header.getStyle().set("margin-bottom", "2rem");
 
         // Logo y título
         HorizontalLayout logoSection = new HorizontalLayout();
@@ -104,23 +103,24 @@ public class LoginView extends VerticalLayout {
         logoSection.setSpacing(true);
 
         Icon serverIcon = new Icon(VaadinIcon.SERVER);
-        serverIcon.setSize("3rem");
+        serverIcon.setSize("2.5rem");
         serverIcon.getStyle().set("color", "#667eea");
 
         H1 title = new H1("Server Monitor");
         title.getStyle()
             .set("margin", "0")
-            .set("color", "#2c3e50")
+            .set("color", "#1e293b")
             .set("font-weight", "700")
-            .set("font-size", "2.5rem");
+            .set("font-size", "2rem");
 
         logoSection.add(serverIcon, title);
 
-        H3 subtitle = new H3("Sistema de Monitoreo Empresarial");
+        H3 subtitle = new H3("Bienvenido de vuelta");
         subtitle.getStyle()
-            .set("margin", "0.5rem 0 2rem 0")
+            .set("margin", "0.5rem 0 0 0")
             .set("color", "#64748b")
             .set("font-weight", "400")
+            .set("font-size", "1.1rem")
             .set("text-align", "center");
 
         header.add(logoSection, subtitle);
@@ -131,48 +131,51 @@ public class LoginView extends VerticalLayout {
         VerticalLayout authSection = new VerticalLayout();
         authSection.setSpacing(true);
         authSection.setPadding(false);
-        authSection.getStyle().set("margin-bottom", "2rem");
-
-        // Título de la sección
-        Paragraph welcomeText = new Paragraph("Accede a tu cuenta");
-        welcomeText.getStyle()
-            .set("font-size", "1.2rem")
-            .set("font-weight", "600")
-            .set("color", "#374151")
-            .set("text-align", "center")
-            .set("margin", "0 0 1.5rem 0");
+        authSection.setAlignItems(Alignment.CENTER);
 
         // Botón principal de Auth0
         Button loginButton = createMainLoginButton();
 
-        // Separador
+        // Separador mejorado
         Div separator = createSeparator();
 
-        // Botón de Google
+        // Botón de Google mejorado
         Button googleButton = createGoogleButton();
 
-        // Información de usuarios de prueba
-        Div testUserInfo = createTestUserInfo();
-
-        authSection.add(welcomeText, loginButton, separator, googleButton, testUserInfo);
+        authSection.add(loginButton, separator, googleButton);
         return authSection;
     }
 
     private Button createMainLoginButton() {
-        Button loginButton = new Button("Iniciar Sesión con Email");
+        Button loginButton = new Button("Iniciar Sesión");
         loginButton.setIcon(new Icon(VaadinIcon.ENVELOPE));
         loginButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_LARGE);
         loginButton.getStyle()
             .set("width", "100%")
-            .set("height", "3.5rem")
-            .set("font-size", "1.1rem")
+            .set("height", "3rem")
+            .set("font-size", "1rem")
             .set("font-weight", "600")
-            .set("border-radius", "12px")
-            .set("background", "linear-gradient(45deg, #667eea, #764ba2)")
-            .set("border", "none");
+            .set("border-radius", "16px")
+            .set("background", "linear-gradient(135deg, #667eea, #764ba2)")
+            .set("border", "none")
+            .set("box-shadow", "0 8px 25px rgba(102, 126, 234, 0.4)")
+            .set("transition", "all 0.3s ease")
+            .set("cursor", "pointer");
+
+        // Efectos hover
+        loginButton.getElement().addEventListener("mouseenter", e -> {
+            loginButton.getStyle()
+                .set("transform", "translateY(-2px)")
+                .set("box-shadow", "0 12px 35px rgba(102, 126, 234, 0.5)");
+        });
+
+        loginButton.getElement().addEventListener("mouseleave", e -> {
+            loginButton.getStyle()
+                .set("transform", "translateY(0)")
+                .set("box-shadow", "0 8px 25px rgba(102, 126, 234, 0.4)");
+        });
 
         loginButton.addClickListener(e -> {
-            // Redirigir a Auth0 sin el parámetro de Google para mostrar la pantalla universal
             UI.getCurrent().getPage().setLocation("/oauth2/authorization/auth0");
         });
 
@@ -184,27 +187,40 @@ public class LoginView extends VerticalLayout {
         separator.getStyle()
             .set("display", "flex")
             .set("align-items", "center")
+            .set("width", "100%")
             .set("margin", "1.5rem 0")
-            .set("color", "#9ca3af");
+            .set("position", "relative");
 
         Div line1 = new Div();
         line1.getStyle()
             .set("flex", "1")
             .set("height", "1px")
-            .set("background", "#e5e7eb");
+            .set("background", "linear-gradient(to right, transparent, #e2e8f0, #e2e8f0)");
+
+        Div orContainer = new Div();
+        orContainer.getStyle()
+            .set("background", "white")
+            .set("padding", "0 1rem")
+            .set("display", "flex")
+            .set("align-items", "center")
+            .set("justify-content", "center")
+            .set("min-width", "40px");
 
         Span orText = new Span("O");
         orText.getStyle()
-            .set("padding", "0 1rem")
-            .set("font-weight", "500");
+            .set("color", "#9ca3af")
+            .set("font-weight", "500")
+            .set("font-size", "0.9rem");
+
+        orContainer.add(orText);
 
         Div line2 = new Div();
         line2.getStyle()
             .set("flex", "1")
             .set("height", "1px")
-            .set("background", "#e5e7eb");
+            .set("background", "linear-gradient(to left, transparent, #e2e8f0, #e2e8f0)");
 
-        separator.add(line1, orText, line2);
+        separator.add(line1, orContainer, line2);
         return separator;
     }
 
@@ -214,8 +230,8 @@ public class LoginView extends VerticalLayout {
         // Crear el ícono de Google usando CSS
         Div googleIcon = new Div();
         googleIcon.getStyle()
-            .set("width", "20px")
-            .set("height", "20px")
+            .set("width", "18px")
+            .set("height", "18px")
             .set("background-image", "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%234285F4' d='M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z'/%3E%3Cpath fill='%2334A853' d='M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z'/%3E%3Cpath fill='%23FBBC05' d='M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z'/%3E%3Cpath fill='%23EA4335' d='M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z'/%3E%3C/svg%3E\")")
             .set("background-size", "cover")
             .set("margin-right", "0.5rem");
@@ -225,102 +241,38 @@ public class LoginView extends VerticalLayout {
         googleButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
         googleButton.getStyle()
             .set("width", "100%")
-            .set("height", "3.5rem")
-            .set("font-size", "1.1rem")
+            .set("height", "3rem")
+            .set("font-size", "1rem")
             .set("font-weight", "500")
-            .set("border-radius", "12px")
+            .set("border-radius", "16px")
             .set("border", "2px solid #e5e7eb")
             .set("color", "#374151")
+            .set("background", "white")
             .set("display", "flex")
             .set("align-items", "center")
-            .set("justify-content", "center");
+            .set("justify-content", "center")
+            .set("transition", "all 0.3s ease")
+            .set("cursor", "pointer");
+
+        // Efectos hover para Google button
+        googleButton.getElement().addEventListener("mouseenter", e -> {
+            googleButton.getStyle()
+                .set("border-color", "#d1d5db")
+                .set("transform", "translateY(-1px)")
+                .set("box-shadow", "0 6px 20px rgba(0,0,0,0.1)");
+        });
+
+        googleButton.getElement().addEventListener("mouseleave", e -> {
+            googleButton.getStyle()
+                .set("border-color", "#e5e7eb")
+                .set("transform", "translateY(0)")
+                .set("box-shadow", "none");
+        });
 
         googleButton.addClickListener(e -> {
-            // Redirigir directamente con Google como hint
             UI.getCurrent().getPage().setLocation("/oauth2/authorization/auth0?connection=google-oauth2");
         });
 
         return googleButton;
-    }
-
-    private Div createTestUserInfo() {
-        Div testInfo = new Div();
-        testInfo.getStyle()
-            .set("background", "linear-gradient(135deg, #e0f2fe, #f3e5f5)")
-            .set("padding", "1.5rem")
-            .set("border-radius", "12px")
-            .set("border-left", "4px solid #667eea")
-            .set("margin-top", "1.5rem");
-
-        Span title = new Span("👨‍💼 Usuario de Prueba");
-        title.getStyle()
-            .set("display", "block")
-            .set("font-weight", "600")
-            .set("color", "#1e293b")
-            .set("margin-bottom", "0.5rem");
-
-        Span email = new Span("📧 ha23039@ues.edu.sv");
-        email.getStyle()
-            .set("display", "block")
-            .set("color", "#475569")
-            .set("font-size", "0.9rem");
-
-        Span role = new Span("🔑 Rol: Administrador");
-        role.getStyle()
-            .set("display", "block")
-            .set("color", "#059669")
-            .set("font-size", "0.9rem")
-            .set("font-weight", "500");
-
-        testInfo.add(title, email, role);
-        return testInfo;
-    }
-
-    private VerticalLayout createInfoSection() {
-        VerticalLayout infoSection = new VerticalLayout();
-        infoSection.setSpacing(false);
-        infoSection.setPadding(false);
-
-        // Features del sistema
-        Div featuresCard = new Div();
-        featuresCard.getStyle()
-            .set("background", "#f8fafc")
-            .set("padding", "1.5rem")
-            .set("border-radius", "12px")
-            .set("border", "1px solid #e2e8f0");
-
-        Span featuresTitle = new Span("✨ Características del Sistema");
-        featuresTitle.getStyle()
-            .set("display", "block")
-            .set("font-weight", "600")
-            .set("color", "#1e293b")
-            .set("margin-bottom", "1rem");
-
-        VerticalLayout featuresList = new VerticalLayout();
-        featuresList.setSpacing(false);
-        featuresList.setPadding(false);
-
-        String[] features = {
-            "🚀 Monitoreo en tiempo real",
-            "🔒 Autenticación segura con Auth0",
-            "📊 Dashboard interactivo",
-            "🎯 Control de acceso por roles",
-            "📱 Diseño responsivo moderno"
-        };
-
-        for (String feature : features) {
-            Span featureItem = new Span(feature);
-            featureItem.getStyle()
-                .set("display", "block")
-                .set("color", "#64748b")
-                .set("font-size", "0.9rem")
-                .set("margin-bottom", "0.5rem");
-            featuresList.add(featureItem);
-        }
-
-        featuresCard.add(featuresTitle, featuresList);
-        infoSection.add(featuresCard);
-
-        return infoSection;
     }
 }

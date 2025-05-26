@@ -3,7 +3,6 @@ package com.monitoring.server.views.databases;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import com.monitoring.server.data.entity.Database;
-import com.monitoring.server.security.Auth0SecurityHelper;
 import com.monitoring.server.security.MenuSecurityHelper;
 import com.monitoring.server.security.SecurityAnnotations.RequiresOperator;
 import com.monitoring.server.service.interfaces.DatabaseService;
@@ -12,9 +11,13 @@ import com.monitoring.server.views.MainLayout;
 import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
+import com.vaadin.flow.component.confirmdialog.ConfirmDialog;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
+import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H2;
+import com.vaadin.flow.component.html.H3;
+import com.vaadin.flow.component.html.Paragraph;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
@@ -42,6 +45,10 @@ public class DatabaseView extends VerticalLayout {
     private final MenuSecurityHelper securityHelper;
     private final Grid<Database> grid = new Grid<>(Database.class, false);
     private DatabaseForm form;
+    
+    // Para tracking de cambios
+    private Database originalDatabase;
+    private boolean hasUnsavedChanges = false;
 
     /**
      * Constructor de la vista de bases de datos.
@@ -58,23 +65,29 @@ public class DatabaseView extends VerticalLayout {
             
             addClassName("database-view");
             setSizeFull();
+            setPadding(false);
+            setSpacing(false);
             
-            add(createTitle());
+            // Crear contenedor principal con espaciado apropiado
+            VerticalLayout mainContainer = createMainContainer();
+            
+            mainContainer.add(createTitle());
             
             configureGrid();
             
             // Only show form for admin
             if (securityHelper.canManageDatabases()) {
                 configureForm();
-                add(createToolbar());
-                add(createContent());
+                mainContainer.add(createToolbar());
+                mainContainer.add(createContent());
                 closeEditor();
             } else {
                 // Read-only view for operators
-                add(createReadOnlyToolbar());
-                add(grid);
+                mainContainer.add(createReadOnlyToolbar());
+                mainContainer.add(grid);
             }
             
+            add(mainContainer);
             updateList();
             
             System.out.println("🔧 CONSTRUCTOR DatabaseView - ÉXITO");
@@ -84,30 +97,55 @@ public class DatabaseView extends VerticalLayout {
             add(new H2("Error: " + e.getMessage()));
         }
     }
+    
+    private VerticalLayout createMainContainer() {
+        VerticalLayout container = new VerticalLayout();
+        container.setSizeFull();
+        container.setPadding(true);
+        container.setSpacing(true);
+        container.setDefaultHorizontalComponentAlignment(Alignment.STRETCH);
+        
+        // Espaciado específico para separar del sidebar
+        container.getStyle()
+            .set("padding", "2rem")
+            .set("padding-left", "3rem") // Extra padding izquierdo para separar del sidebar
+            .set("padding-right", "2rem")
+            .set("max-width", "1400px")
+            .set("margin", "0 auto")
+            .set("box-sizing", "border-box");
+            
+        return container;
+    }
 
     /**
      * Crea el título de la vista.
      */
     private Component createTitle() {
         H2 title = new H2("Bases de Datos Monitoreadas");
-        title.addClassNames(
-            LumoUtility.FontSize.XLARGE,
-            LumoUtility.Margin.Bottom.MEDIUM
-        );
+        title.getStyle()
+            .set("color", "#F9FAFB")
+            .set("font-weight", "700")
+            .set("font-size", "2rem")
+            .set("margin", "0 0 1rem 0");
         
         // Add role indicator
         Span roleInfo = new Span();
         if (securityHelper.canManageDatabases()) {
-            roleInfo.setText("Modo Administrador - Acceso completo");
-            roleInfo.getStyle().set("color", "var(--lumo-success-color)");
+            roleInfo.setText("🔧 Modo Administrador - Acceso completo");
+            roleInfo.getStyle()
+                .set("color", "#34D399")
+                .set("font-weight", "500");
         } else {
-            roleInfo.setText("Modo Solo Lectura - Puede probar conexiones");
-            roleInfo.getStyle().set("color", "var(--lumo-warning-color)");
+            roleInfo.setText("👁️ Modo Solo Lectura - Puede probar conexiones");
+            roleInfo.getStyle()
+                .set("color", "#FBBF24")
+                .set("font-weight", "500");
         }
         
         VerticalLayout header = new VerticalLayout(title, roleInfo);
         header.setPadding(false);
         header.setSpacing(false);
+        header.getStyle().set("margin-bottom", "2rem");
         
         return header;
     }
@@ -118,6 +156,11 @@ public class DatabaseView extends VerticalLayout {
     private void configureGrid() {
         grid.addClassNames("database-grid");
         grid.setSizeFull();
+        grid.getStyle()
+            .set("background", "rgba(255, 255, 255, 0.05)")
+            .set("border-radius", "12px")
+            .set("border", "1px solid rgba(255, 255, 255, 0.1)")
+            .set("backdrop-filter", "blur(10px)");
         
         grid.addColumn(Database::getName).setHeader("Nombre").setAutoWidth(true);
         grid.addColumn(Database::getType).setHeader("Tipo").setAutoWidth(true);
@@ -130,10 +173,13 @@ public class DatabaseView extends VerticalLayout {
             
             if ("Activa".equals(database.getStatus())) {
                 status.getElement().getThemeList().add("badge success");
+                status.getStyle().set("color", "#34D399");
             } else if ("En espera".equals(database.getStatus())) {
                 status.getElement().getThemeList().add("badge");
+                status.getStyle().set("color", "#FBBF24");
             } else {
                 status.getElement().getThemeList().add("badge error");
+                status.getStyle().set("color", "#F87171");
             }
             
             return status;
@@ -141,6 +187,7 @@ public class DatabaseView extends VerticalLayout {
         
         grid.addColumn(new ComponentRenderer<>(database -> {
             Span monitorEnabled = new Span(database.getMonitorEnabled() ? "Sí" : "No");
+            monitorEnabled.getStyle().set("color", "#D1D5DB");
             return monitorEnabled;
         })).setHeader("Monitorear").setAutoWidth(true);
         
@@ -153,7 +200,7 @@ public class DatabaseView extends VerticalLayout {
         if (securityHelper.canManageDatabases()) {
             grid.asSingleSelect().addValueChangeListener(e -> {
                 if (e.getValue() != null) {
-                    editDatabase(e.getValue());
+                    checkUnsavedChangesBeforeEdit(e.getValue());
                 }
             });
         }
@@ -169,7 +216,7 @@ public class DatabaseView extends VerticalLayout {
         Button testButton = new Button(new Icon(VaadinIcon.CONNECT));
         testButton.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_TERTIARY);
         testButton.getElement().setAttribute("title", "Probar conexión");
-        testButton.addClickListener(e -> testConnection(database));
+        testButton.addClickListener(e -> confirmTestConnection(database));
         
         actions.add(testButton);
         
@@ -178,12 +225,12 @@ public class DatabaseView extends VerticalLayout {
             Button editButton = new Button(new Icon(VaadinIcon.EDIT));
             editButton.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_TERTIARY);
             editButton.getElement().setAttribute("title", "Editar");
-            editButton.addClickListener(e -> editDatabase(database));
+            editButton.addClickListener(e -> checkUnsavedChangesBeforeEdit(database));
             
             Button deleteButton = new Button(new Icon(VaadinIcon.TRASH));
             deleteButton.addThemeVariants(ButtonVariant.LUMO_SMALL, ButtonVariant.LUMO_TERTIARY, ButtonVariant.LUMO_ERROR);
             deleteButton.getElement().setAttribute("title", "Eliminar");
-            deleteButton.addClickListener(e -> deleteDatabase(database));
+            deleteButton.addClickListener(e -> confirmDeleteDatabase(database));
             
             actions.add(editButton, deleteButton);
         }
@@ -197,10 +244,16 @@ public class DatabaseView extends VerticalLayout {
     private void configureForm() {
         form = new DatabaseForm(databaseService, connectionTester);
         form.setWidth("25em");
+        form.getStyle()
+            .set("background", "rgba(255, 255, 255, 0.05)")
+            .set("border-radius", "12px")
+            .set("padding", "1.5rem")
+            .set("border", "1px solid rgba(255, 255, 255, 0.1)")
+            .set("backdrop-filter", "blur(10px)");
         
-        form.addListener(DatabaseForm.SaveEvent.class, this::saveDatabase);
-        form.addListener(DatabaseForm.CloseEvent.class, e -> closeEditor());
-        form.addListener(DatabaseForm.DeleteEvent.class, e -> deleteDatabase(e.getDatabase()));
+        form.addListener(DatabaseForm.SaveEvent.class, this::confirmSaveDatabase);
+        form.addListener(DatabaseForm.CloseEvent.class, e -> checkUnsavedChangesBeforeClose());
+        form.addListener(DatabaseForm.DeleteEvent.class, e -> confirmDeleteDatabase(e.getDatabase()));
     }
 
     /**
@@ -209,11 +262,16 @@ public class DatabaseView extends VerticalLayout {
     private Component createToolbar() {
         Button addButton = new Button("Agregar BD", new Icon(VaadinIcon.PLUS));
         addButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        addButton.addClickListener(e -> addDatabase());
+        addButton.getStyle()
+            .set("background", "linear-gradient(135deg, #60A5FA, #34D399)")
+            .set("border", "none")
+            .set("border-radius", "8px");
+        addButton.addClickListener(e -> confirmAddDatabase());
         
         HorizontalLayout toolbar = new HorizontalLayout(addButton);
         toolbar.setWidthFull();
         toolbar.setJustifyContentMode(JustifyContentMode.END);
+        toolbar.getStyle().set("margin-bottom", "1rem");
         
         return toolbar;
     }
@@ -224,11 +282,15 @@ public class DatabaseView extends VerticalLayout {
     private Component createReadOnlyToolbar() {
         Button refreshButton = new Button("Actualizar", new Icon(VaadinIcon.REFRESH));
         refreshButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
+        refreshButton.getStyle()
+            .set("border", "1px solid rgba(255, 255, 255, 0.2)")
+            .set("color", "#D1D5DB");
         refreshButton.addClickListener(e -> updateList());
         
         HorizontalLayout toolbar = new HorizontalLayout(refreshButton);
         toolbar.setWidthFull();
         toolbar.setJustifyContentMode(JustifyContentMode.END);
+        toolbar.getStyle().set("margin-bottom", "1rem");
         
         return toolbar;
     }
@@ -241,9 +303,223 @@ public class DatabaseView extends VerticalLayout {
         content.setFlexGrow(2, grid);
         content.setFlexGrow(1, form);
         content.setSizeFull();
+        content.setSpacing(true);
         
         return content;
     }
+
+    // ========== MÉTODOS DE CONFIRMACIÓN ==========
+
+    /**
+     * Confirma antes de agregar una nueva base de datos.
+     */
+    private void confirmAddDatabase() {
+        if (!securityHelper.canManageDatabases()) {
+            showPermissionDeniedNotification();
+            return;
+        }
+
+        ConfirmDialog dialog = new ConfirmDialog();
+        dialog.setHeader("Nueva Base de Datos");
+        dialog.setText("¿Está seguro que desea agregar una nueva base de datos?");
+        
+        dialog.setCancelable(true);
+        dialog.setCancelText("Cancelar");
+        dialog.setConfirmText("Sí, agregar");
+        dialog.setConfirmButtonTheme("primary");
+        
+        dialog.addConfirmListener(e -> addDatabase());
+        dialog.open();
+    }
+
+    /**
+     * Confirma antes de probar conexión.
+     */
+    private void confirmTestConnection(Database database) {
+        ConfirmDialog dialog = new ConfirmDialog();
+        dialog.setHeader("Probar Conexión");
+        
+        Div content = new Div();
+        content.add(new Paragraph("¿Desea probar la conexión a la base de datos?"));
+        content.add(new Paragraph("Base de datos: " + database.getName() + " (" + database.getType() + ")"));
+        content.add(new Paragraph("Host: " + database.getHost() + ":" + database.getPort()));
+        dialog.add(content);
+        
+        dialog.setCancelable(true);
+        dialog.setCancelText("Cancelar");
+        dialog.setConfirmText("Probar Conexión");
+        dialog.setConfirmButtonTheme("primary");
+        
+        dialog.addConfirmListener(e -> testConnection(database));
+        dialog.open();
+    }
+
+    /**
+     * Confirma antes de guardar una base de datos.
+     */
+    private void confirmSaveDatabase(DatabaseForm.SaveEvent event) {
+        if (!securityHelper.canManageDatabases()) {
+            showPermissionDeniedNotification();
+            return;
+        }
+
+        Database databaseToSave = event.getDatabase();
+        boolean isNew = databaseToSave.getId() == null;
+        
+        ConfirmDialog dialog = new ConfirmDialog();
+        dialog.setHeader(isNew ? "Crear Base de Datos" : "Actualizar Base de Datos");
+        
+        Div content = new Div();
+        if (isNew) {
+            content.add(new Paragraph("¿Está seguro que desea crear esta nueva base de datos?"));
+        } else {
+            content.add(new Paragraph("¿Está seguro que desea guardar los cambios?"));
+            if (hasChanges(databaseToSave)) {
+                content.add(new H3("Cambios detectados:"));
+                content.add(createChangesPreview(databaseToSave));
+            }
+        }
+        
+        content.add(new Paragraph("Nombre: " + databaseToSave.getName()));
+        content.add(new Paragraph("Tipo: " + databaseToSave.getType()));
+        content.add(new Paragraph("Host: " + databaseToSave.getHost() + ":" + databaseToSave.getPort()));
+        dialog.add(content);
+        
+        dialog.setCancelable(true);
+        dialog.setCancelText("Cancelar");
+        dialog.setConfirmText(isNew ? "Crear" : "Guardar");
+        dialog.setConfirmButtonTheme("primary");
+        
+        dialog.addConfirmListener(e -> saveDatabase(event));
+        dialog.open();
+    }
+
+    /**
+     * Confirma antes de eliminar una base de datos.
+     */
+    private void confirmDeleteDatabase(Database database) {
+        if (!securityHelper.canManageDatabases()) {
+            showPermissionDeniedNotification();
+            return;
+        }
+
+        ConfirmDialog dialog = new ConfirmDialog();
+        dialog.setHeader("⚠️ Eliminar Base de Datos");
+        
+        Div content = new Div();
+        content.add(new Paragraph("¿Está seguro que desea eliminar esta base de datos?"));
+        content.add(new Paragraph("Esta acción NO se puede deshacer."));
+        content.add(new H3("Base de datos a eliminar:"));
+        content.add(new Paragraph("• Nombre: " + database.getName()));
+        content.add(new Paragraph("• Tipo: " + database.getType()));
+        content.add(new Paragraph("• Host: " + database.getHost()));
+        content.add(new Paragraph("• Estado: " + database.getStatus()));
+        dialog.add(content);
+        
+        dialog.setCancelable(true);
+        dialog.setCancelText("Cancelar");
+        dialog.setConfirmText("Sí, eliminar");
+        dialog.setConfirmButtonTheme("error primary");
+        
+        dialog.addConfirmListener(e -> deleteDatabase(database));
+        dialog.open();
+    }
+
+    /**
+     * Verifica cambios no guardados antes de editar otra BD.
+     */
+    private void checkUnsavedChangesBeforeEdit(Database database) {
+        if (hasUnsavedChanges && form != null && form.isVisible()) {
+            ConfirmDialog dialog = new ConfirmDialog();
+            dialog.setHeader("Cambios no guardados");
+            dialog.setText("Hay cambios sin guardar en el formulario actual. ¿Desea continuar sin guardar?");
+            
+            dialog.setCancelable(true);
+            dialog.setCancelText("Cancelar");
+            dialog.setConfirmText("Continuar sin guardar");
+            dialog.setConfirmButtonTheme("error");
+            
+            dialog.addConfirmListener(e -> {
+                hasUnsavedChanges = false;
+                editDatabase(database);
+            });
+            dialog.open();
+        } else {
+            editDatabase(database);
+        }
+    }
+
+    /**
+     * Verifica cambios no guardados antes de cerrar el formulario.
+     */
+    private void checkUnsavedChangesBeforeClose() {
+        if (hasUnsavedChanges) {
+            ConfirmDialog dialog = new ConfirmDialog();
+            dialog.setHeader("Cambios no guardados");
+            dialog.setText("Hay cambios sin guardar. ¿Desea continuar sin guardar?");
+            
+            dialog.setCancelable(true);
+            dialog.setCancelText("Cancelar");
+            dialog.setConfirmText("Cerrar sin guardar");
+            dialog.setConfirmButtonTheme("error");
+            
+            dialog.addConfirmListener(e -> {
+                hasUnsavedChanges = false;
+                closeEditor();
+            });
+            dialog.open();
+        } else {
+            closeEditor();
+        }
+    }
+
+    // ========== MÉTODOS AUXILIARES ==========
+
+    /**
+     * Verifica si hay cambios en la base de datos.
+     */
+    private boolean hasChanges(Database current) {
+        if (originalDatabase == null || current == null) return false;
+        
+        return !originalDatabase.getName().equals(current.getName()) ||
+               !originalDatabase.getType().equals(current.getType()) ||
+               !originalDatabase.getHost().equals(current.getHost()) ||
+               !originalDatabase.getPort().equals(current.getPort()) ||
+               !originalDatabase.getUsername().equals(current.getUsername()) ||
+               !originalDatabase.getStatus().equals(current.getStatus()) ||
+               !originalDatabase.getMonitorEnabled().equals(current.getMonitorEnabled());
+    }
+
+    /**
+     * Crea una vista previa de los cambios.
+     */
+    private Component createChangesPreview(Database current) {
+        VerticalLayout changes = new VerticalLayout();
+        changes.setPadding(false);
+        changes.setSpacing(false);
+        
+        if (originalDatabase != null) {
+            if (!originalDatabase.getName().equals(current.getName())) {
+                changes.add(new Span("• Nombre: " + originalDatabase.getName() + " → " + current.getName()));
+            }
+            if (!originalDatabase.getType().equals(current.getType())) {
+                changes.add(new Span("• Tipo: " + originalDatabase.getType() + " → " + current.getType()));
+            }
+            if (!originalDatabase.getHost().equals(current.getHost())) {
+                changes.add(new Span("• Host: " + originalDatabase.getHost() + " → " + current.getHost()));
+            }
+            if (!originalDatabase.getPort().equals(current.getPort())) {
+                changes.add(new Span("• Puerto: " + originalDatabase.getPort() + " → " + current.getPort()));
+            }
+            if (!originalDatabase.getStatus().equals(current.getStatus())) {
+                changes.add(new Span("• Estado: " + originalDatabase.getStatus() + " → " + current.getStatus()));
+            }
+        }
+        
+        return changes;
+    }
+
+    // ========== MÉTODOS ORIGINALES ACTUALIZADOS ==========
 
     /**
      * Actualiza la lista de bases de datos.
@@ -266,6 +542,8 @@ public class DatabaseView extends VerticalLayout {
             form.setDatabase(null);
             form.setVisible(false);
             grid.asSingleSelect().clear();
+            hasUnsavedChanges = false;
+            originalDatabase = null;
         }
     }
 
@@ -273,11 +551,6 @@ public class DatabaseView extends VerticalLayout {
      * Abre el editor para agregar una nueva base de datos (solo admin).
      */
     private void addDatabase() {
-        if (!securityHelper.canManageDatabases()) {
-            showPermissionDeniedNotification();
-            return;
-        }
-        
         grid.asSingleSelect().clear();
         Database newDatabase = new Database();
         newDatabase.setStatus("Inactiva");
@@ -297,29 +570,45 @@ public class DatabaseView extends VerticalLayout {
         if (database == null) {
             closeEditor();
         } else {
+            // Guardar copia original para detectar cambios
+            originalDatabase = database.getId() != null ? cloneDatabase(database) : null;
+            hasUnsavedChanges = false;
+            
             form.setDatabase(database);
             form.setVisible(true);
         }
     }
 
     /**
+     * Crea una copia de la base de datos para detectar cambios.
+     */
+    private Database cloneDatabase(Database original) {
+        Database clone = new Database();
+        clone.setId(original.getId());
+        clone.setName(original.getName());
+        clone.setType(original.getType());
+        clone.setHost(original.getHost());
+        clone.setPort(original.getPort());
+        clone.setUsername(original.getUsername());
+        clone.setPassword(original.getPassword());
+        clone.setStatus(original.getStatus());
+        clone.setMonitorEnabled(original.getMonitorEnabled());
+        return clone;
+    }
+
+    /**
      * Guarda una base de datos (solo admin).
      */
     private void saveDatabase(DatabaseForm.SaveEvent event) {
-        if (!securityHelper.canManageDatabases()) {
-            showPermissionDeniedNotification();
-            return;
-        }
-        
         try {
             databaseService.save(event.getDatabase());
             updateList();
             closeEditor();
             
-            Notification notification = Notification.show("Base de datos guardada");
+            Notification notification = Notification.show("✅ Base de datos guardada exitosamente");
             notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
         } catch (Exception e) {
-            Notification notification = Notification.show("Error al guardar: " + e.getMessage());
+            Notification notification = Notification.show("❌ Error al guardar: " + e.getMessage());
             notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
     }
@@ -328,20 +617,15 @@ public class DatabaseView extends VerticalLayout {
      * Elimina una base de datos (solo admin).
      */
     private void deleteDatabase(Database database) {
-        if (!securityHelper.canManageDatabases()) {
-            showPermissionDeniedNotification();
-            return;
-        }
-        
         try {
             databaseService.deleteById(database.getId());
             updateList();
             closeEditor();
             
-            Notification notification = Notification.show("Base de datos eliminada");
+            Notification notification = Notification.show("✅ Base de datos eliminada exitosamente");
             notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
         } catch (Exception e) {
-            Notification notification = Notification.show("Error al eliminar: " + e.getMessage());
+            Notification notification = Notification.show("❌ Error al eliminar: " + e.getMessage());
             notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
     }
@@ -354,7 +638,7 @@ public class DatabaseView extends VerticalLayout {
             boolean success = connectionTester.testConnection(database);
             
             if (success) {
-                Notification notification = Notification.show("Conexión exitosa");
+                Notification notification = Notification.show("✅ Conexión exitosa a " + database.getName());
                 notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                 
                 // Update status only if user can manage databases
@@ -363,7 +647,7 @@ public class DatabaseView extends VerticalLayout {
                     updateList();
                 }
             } else {
-                Notification notification = Notification.show("Conexión fallida");
+                Notification notification = Notification.show("❌ Conexión fallida a " + database.getName());
                 notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
                 
                 // Update status only if user can manage databases
@@ -373,7 +657,7 @@ public class DatabaseView extends VerticalLayout {
                 }
             }
         } catch (Exception e) {
-            Notification notification = Notification.show("Error al probar conexión: " + e.getMessage());
+            Notification notification = Notification.show("❌ Error al probar conexión: " + e.getMessage());
             notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
     }
@@ -383,7 +667,7 @@ public class DatabaseView extends VerticalLayout {
      */
     private void showPermissionDeniedNotification() {
         Notification notification = Notification.show(
-            "No tienes permisos suficientes para realizar esta acción. Se requiere rol de Administrador del Sistema."
+            "🚫 No tienes permisos suficientes para realizar esta acción. Se requiere rol de Administrador del Sistema."
         );
         notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
     }

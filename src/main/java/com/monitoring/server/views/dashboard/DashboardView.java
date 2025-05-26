@@ -31,11 +31,9 @@ import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.server.auth.AnonymousAllowed;
 
-@Route(value = "dashboard", layout = MainLayout.class) // RUTA ESPECÍFICA - NO CONFLICTO
+@Route(value = "dashboard", layout = MainLayout.class)
 @PageTitle("Dashboard - Métricas en Tiempo Real")
-//@RequiresAuth // Require authentication for dashboard access
 @RequiresViewer
 public class DashboardView extends VerticalLayout {
 
@@ -65,17 +63,40 @@ public class DashboardView extends VerticalLayout {
         
         addClassName("dashboard-view");
         setSizeFull();
-        setPadding(true);
-        setSpacing(true);
+        setPadding(false);
+        setSpacing(false);
+        
+        // Crear contenedor principal con espaciado apropiado
+        VerticalLayout mainContainer = createMainContainer();
         
         alertBanner = createAlertBanner();
         Component statusPanel = createStatusPanel();
         Component chartSection = createChartSection();
         Component processSection = createProcessSection();
         
-        add(alertBanner, statusPanel, chartSection, processSection);
+        mainContainer.add(alertBanner, statusPanel, chartSection, processSection);
+        add(mainContainer);
         
         setupPeriodicRefresh();
+    }
+    
+    private VerticalLayout createMainContainer() {
+        VerticalLayout container = new VerticalLayout();
+        container.setSizeFull();
+        container.setPadding(true);
+        container.setSpacing(true);
+        container.setDefaultHorizontalComponentAlignment(Alignment.STRETCH);
+        
+        // Espaciado específico para separar del sidebar
+        container.getStyle()
+            .set("padding", "2rem")
+            .set("padding-left", "3rem") // Extra padding izquierdo para separar del sidebar
+            .set("padding-right", "2rem")
+            .set("max-width", "1400px")
+            .set("margin", "0 auto")
+            .set("box-sizing", "border-box");
+            
+        return container;
     }
     
     private void setupPeriodicRefresh() {
@@ -98,11 +119,14 @@ public class DashboardView extends VerticalLayout {
         layout.setWidth("100%");
         layout.setPadding(false);
         layout.setSpacing(true);
+        layout.getStyle()
+            .set("margin-bottom", "2rem");
         
         HorizontalLayout metricsLayout = new HorizontalLayout();
         metricsLayout.setWidth("100%");
         metricsLayout.setPadding(false);
         metricsLayout.setSpacing(true);
+        metricsLayout.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
         
         AlertConfiguration config = alertConfigService.getCurrentConfig();
         
@@ -124,6 +148,16 @@ public class DashboardView extends VerticalLayout {
     private Div createMetricSection(MetricProgressBar progressBar) {
         Div section = new Div();
         section.addClassName("metric-section");
+        section.getStyle()
+            .set("background", "rgba(255, 255, 255, 0.05)")
+            .set("border-radius", "12px")
+            .set("padding", "1.5rem")
+            .set("margin", "0 0.5rem")
+            .set("border", "1px solid rgba(255, 255, 255, 0.1)")
+            .set("backdrop-filter", "blur(10px)")
+            .set("min-height", "120px")
+            .set("display", "flex")
+            .set("align-items", "center");
         section.add(progressBar);
         return section;
     }
@@ -132,9 +166,20 @@ public class DashboardView extends VerticalLayout {
         VerticalLayout layout = new VerticalLayout();
         layout.setPadding(false);
         layout.setSpacing(true);
+        layout.getStyle()
+            .set("background", "rgba(255, 255, 255, 0.05)")
+            .set("border-radius", "12px")
+            .set("padding", "2rem")
+            .set("margin-bottom", "2rem")
+            .set("border", "1px solid rgba(255, 255, 255, 0.1)")
+            .set("backdrop-filter", "blur(10px)");
         
         H2 title = new H2("Gráfica de Uso del Sistema");
-        title.getStyle().set("margin-top", "0");
+        title.getStyle()
+            .set("margin", "0 0 1.5rem 0")
+            .set("color", "#F9FAFB")
+            .set("font-weight", "600")
+            .set("font-size", "1.5rem");
         
         Tab tab1h = new Tab("1H");
         Tab tab24h = new Tab("24H");
@@ -142,6 +187,11 @@ public class DashboardView extends VerticalLayout {
         Tab tab1m = new Tab("1M");
         
         periodTabs = new Tabs(tab1h, tab24h, tab7d, tab1m);
+        periodTabs.getStyle()
+            .set("background", "rgba(255, 255, 255, 0.1)")
+            .set("border-radius", "8px")
+            .set("padding", "0.25rem");
+            
         periodTabs.addSelectedChangeListener(event -> {
             Tab selectedTab = event.getSelectedTab();
             selectedPeriod = selectedTab.getLabel();
@@ -149,11 +199,15 @@ public class DashboardView extends VerticalLayout {
         });
         
         systemUsageChart = new MetricChart();
+        systemUsageChart.getStyle()
+            .set("margin-top", "1rem")
+            .set("min-height", "300px");
         
         HorizontalLayout headerLayout = new HorizontalLayout(title, periodTabs);
-        headerLayout.setAlignItems(FlexComponent.Alignment.BASELINE);
+        headerLayout.setAlignItems(FlexComponent.Alignment.CENTER);
         headerLayout.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
         headerLayout.setWidthFull();
+        headerLayout.getStyle().set("margin-bottom", "1rem");
         
         layout.add(headerLayout, systemUsageChart);
         return layout;
@@ -163,14 +217,29 @@ public class DashboardView extends VerticalLayout {
         VerticalLayout layout = new VerticalLayout();
         layout.setPadding(false);
         layout.setSpacing(true);
+        layout.getStyle()
+            .set("background", "rgba(255, 255, 255, 0.05)")
+            .set("border-radius", "12px")
+            .set("padding", "2rem")
+            .set("border", "1px solid rgba(255, 255, 255, 0.1)")
+            .set("backdrop-filter", "blur(10px)");
         
         H2 title = new H2("Procesos Más Pesados");
-        title.getStyle().set("margin-top", "0");
+        title.getStyle()
+            .set("margin", "0 0 1.5rem 0")
+            .set("color", "#F9FAFB")
+            .set("font-weight", "600")
+            .set("font-size", "1.5rem");
         
         Select<String> sortSelect = new Select<>();
         sortSelect.setItems("CPU", "Memoria", "Disco");
         sortSelect.setValue("CPU");
         sortSelect.setLabel("Ordenar por");
+        sortSelect.getStyle()
+            .set("background", "rgba(255, 255, 255, 0.1)")
+            .set("border-radius", "8px")
+            .set("min-width", "150px");
+            
         sortSelect.addValueChangeListener(event -> {
             selectedProcessSortColumn = event.getValue();
             updateProcessList();
@@ -185,11 +254,17 @@ public class DashboardView extends VerticalLayout {
         processGrid.addColumn(p -> String.format("%.1f KB/s", p.getDiskUsage())).setHeader("Disco (KB/s)");
         
         processGrid.setAllRowsVisible(true);
+        processGrid.getStyle()
+            .set("margin-top", "1rem")
+            .set("background", "rgba(255, 255, 255, 0.05)")
+            .set("border-radius", "8px")
+            .set("border", "1px solid rgba(255, 255, 255, 0.1)");
         
         HorizontalLayout headerLayout = new HorizontalLayout(title, sortSelect);
-        headerLayout.setAlignItems(FlexComponent.Alignment.BASELINE);
+        headerLayout.setAlignItems(FlexComponent.Alignment.CENTER);
         headerLayout.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
         headerLayout.setWidthFull();
+        headerLayout.getStyle().set("margin-bottom", "1rem");
         
         layout.add(headerLayout, processGrid);
         return layout;
@@ -198,6 +273,8 @@ public class DashboardView extends VerticalLayout {
     private AlertBanner createAlertBanner() {
         AlertBanner banner = new AlertBanner();
         banner.setVisible(false);
+        banner.getStyle()
+            .set("margin-bottom", "1.5rem");
         return banner;
     }
     
