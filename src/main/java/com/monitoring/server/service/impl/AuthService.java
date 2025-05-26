@@ -91,9 +91,14 @@ public class AuthService {
     /**
      * Check if current user is administrator
      */
-    public boolean isAdmin() {
-        return getCurrentUserRole() == UserRole.ADMIN;
-    }
+   // public boolean isAdmin() {
+     //   return getCurrentUserRole() == UserRole.ADMIN;
+   // }
+   public boolean isAdmin() {
+    UserRole role = getCurrentUserRole();
+    //  TEMPORAL: OPERATOR actúa como admin
+    return role == UserRole.ADMIN || role == UserRole.OPERATOR;
+}
 
     /**
      * Check if current user is operator or admin
@@ -136,8 +141,13 @@ public class AuthService {
     /**
      * Check if current user can manage users
      */
+   // public boolean canManageUsers() {
+  //      return isAdmin();
+  //  }
     public boolean canManageUsers() {
-        return isAdmin();
+        UserRole role = getCurrentUserRole();
+        // ✅ TEMPORAL: Permitir OPERATOR gestionar usuarios
+        return role == UserRole.ADMIN || role == UserRole.OPERATOR;
     }
 
     /**
