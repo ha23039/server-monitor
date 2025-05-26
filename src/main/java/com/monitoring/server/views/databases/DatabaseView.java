@@ -65,29 +65,23 @@ public class DatabaseView extends VerticalLayout {
             
             addClassName("database-view");
             setSizeFull();
-            setPadding(false);
-            setSpacing(false);
             
-            // Crear contenedor principal con espaciado apropiado
-            VerticalLayout mainContainer = createMainContainer();
-            
-            mainContainer.add(createTitle());
+            add(createTitle());
             
             configureGrid();
             
             // Only show form for admin
             if (securityHelper.canManageDatabases()) {
                 configureForm();
-                mainContainer.add(createToolbar());
-                mainContainer.add(createContent());
+                add(createToolbar());
+                add(createContent());
                 closeEditor();
             } else {
                 // Read-only view for operators
-                mainContainer.add(createReadOnlyToolbar());
-                mainContainer.add(grid);
+                add(createReadOnlyToolbar());
+                add(grid);
             }
             
-            add(mainContainer);
             updateList();
             
             System.out.println("🔧 CONSTRUCTOR DatabaseView - ÉXITO");
@@ -97,55 +91,30 @@ public class DatabaseView extends VerticalLayout {
             add(new H2("Error: " + e.getMessage()));
         }
     }
-    
-    private VerticalLayout createMainContainer() {
-        VerticalLayout container = new VerticalLayout();
-        container.setSizeFull();
-        container.setPadding(true);
-        container.setSpacing(true);
-        container.setDefaultHorizontalComponentAlignment(Alignment.STRETCH);
-        
-        // Espaciado específico para separar del sidebar
-        container.getStyle()
-            .set("padding", "2rem")
-            .set("padding-left", "3rem") // Extra padding izquierdo para separar del sidebar
-            .set("padding-right", "2rem")
-            .set("max-width", "1400px")
-            .set("margin", "0 auto")
-            .set("box-sizing", "border-box");
-            
-        return container;
-    }
 
     /**
      * Crea el título de la vista.
      */
     private Component createTitle() {
         H2 title = new H2("Bases de Datos Monitoreadas");
-        title.getStyle()
-            .set("color", "#F9FAFB")
-            .set("font-weight", "700")
-            .set("font-size", "2rem")
-            .set("margin", "0 0 1rem 0");
+        title.addClassNames(
+            LumoUtility.FontSize.XLARGE,
+            LumoUtility.Margin.Bottom.MEDIUM
+        );
         
         // Add role indicator
         Span roleInfo = new Span();
         if (securityHelper.canManageDatabases()) {
-            roleInfo.setText("🔧 Modo Administrador - Acceso completo");
-            roleInfo.getStyle()
-                .set("color", "#34D399")
-                .set("font-weight", "500");
+            roleInfo.setText("Modo Administrador - Acceso completo");
+            roleInfo.getStyle().set("color", "var(--lumo-success-color)");
         } else {
-            roleInfo.setText("👁️ Modo Solo Lectura - Puede probar conexiones");
-            roleInfo.getStyle()
-                .set("color", "#FBBF24")
-                .set("font-weight", "500");
+            roleInfo.setText("Modo Solo Lectura - Puede probar conexiones");
+            roleInfo.getStyle().set("color", "var(--lumo-warning-color)");
         }
         
         VerticalLayout header = new VerticalLayout(title, roleInfo);
         header.setPadding(false);
         header.setSpacing(false);
-        header.getStyle().set("margin-bottom", "2rem");
         
         return header;
     }
@@ -156,11 +125,6 @@ public class DatabaseView extends VerticalLayout {
     private void configureGrid() {
         grid.addClassNames("database-grid");
         grid.setSizeFull();
-        grid.getStyle()
-            .set("background", "rgba(255, 255, 255, 0.05)")
-            .set("border-radius", "12px")
-            .set("border", "1px solid rgba(255, 255, 255, 0.1)")
-            .set("backdrop-filter", "blur(10px)");
         
         grid.addColumn(Database::getName).setHeader("Nombre").setAutoWidth(true);
         grid.addColumn(Database::getType).setHeader("Tipo").setAutoWidth(true);
@@ -173,13 +137,10 @@ public class DatabaseView extends VerticalLayout {
             
             if ("Activa".equals(database.getStatus())) {
                 status.getElement().getThemeList().add("badge success");
-                status.getStyle().set("color", "#34D399");
             } else if ("En espera".equals(database.getStatus())) {
                 status.getElement().getThemeList().add("badge");
-                status.getStyle().set("color", "#FBBF24");
             } else {
                 status.getElement().getThemeList().add("badge error");
-                status.getStyle().set("color", "#F87171");
             }
             
             return status;
@@ -187,7 +148,6 @@ public class DatabaseView extends VerticalLayout {
         
         grid.addColumn(new ComponentRenderer<>(database -> {
             Span monitorEnabled = new Span(database.getMonitorEnabled() ? "Sí" : "No");
-            monitorEnabled.getStyle().set("color", "#D1D5DB");
             return monitorEnabled;
         })).setHeader("Monitorear").setAutoWidth(true);
         
@@ -244,12 +204,6 @@ public class DatabaseView extends VerticalLayout {
     private void configureForm() {
         form = new DatabaseForm(databaseService, connectionTester);
         form.setWidth("25em");
-        form.getStyle()
-            .set("background", "rgba(255, 255, 255, 0.05)")
-            .set("border-radius", "12px")
-            .set("padding", "1.5rem")
-            .set("border", "1px solid rgba(255, 255, 255, 0.1)")
-            .set("backdrop-filter", "blur(10px)");
         
         form.addListener(DatabaseForm.SaveEvent.class, this::confirmSaveDatabase);
         form.addListener(DatabaseForm.CloseEvent.class, e -> checkUnsavedChangesBeforeClose());
@@ -262,16 +216,11 @@ public class DatabaseView extends VerticalLayout {
     private Component createToolbar() {
         Button addButton = new Button("Agregar BD", new Icon(VaadinIcon.PLUS));
         addButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        addButton.getStyle()
-            .set("background", "linear-gradient(135deg, #60A5FA, #34D399)")
-            .set("border", "none")
-            .set("border-radius", "8px");
         addButton.addClickListener(e -> confirmAddDatabase());
         
         HorizontalLayout toolbar = new HorizontalLayout(addButton);
         toolbar.setWidthFull();
         toolbar.setJustifyContentMode(JustifyContentMode.END);
-        toolbar.getStyle().set("margin-bottom", "1rem");
         
         return toolbar;
     }
@@ -282,15 +231,11 @@ public class DatabaseView extends VerticalLayout {
     private Component createReadOnlyToolbar() {
         Button refreshButton = new Button("Actualizar", new Icon(VaadinIcon.REFRESH));
         refreshButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        refreshButton.getStyle()
-            .set("border", "1px solid rgba(255, 255, 255, 0.2)")
-            .set("color", "#D1D5DB");
         refreshButton.addClickListener(e -> updateList());
         
         HorizontalLayout toolbar = new HorizontalLayout(refreshButton);
         toolbar.setWidthFull();
         toolbar.setJustifyContentMode(JustifyContentMode.END);
-        toolbar.getStyle().set("margin-bottom", "1rem");
         
         return toolbar;
     }
@@ -303,7 +248,6 @@ public class DatabaseView extends VerticalLayout {
         content.setFlexGrow(2, grid);
         content.setFlexGrow(1, form);
         content.setSizeFull();
-        content.setSpacing(true);
         
         return content;
     }
@@ -605,10 +549,10 @@ public class DatabaseView extends VerticalLayout {
             updateList();
             closeEditor();
             
-            Notification notification = Notification.show("✅ Base de datos guardada exitosamente");
+            Notification notification = Notification.show("Base de datos guardada");
             notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
         } catch (Exception e) {
-            Notification notification = Notification.show("❌ Error al guardar: " + e.getMessage());
+            Notification notification = Notification.show("Error al guardar: " + e.getMessage());
             notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
     }
@@ -622,10 +566,10 @@ public class DatabaseView extends VerticalLayout {
             updateList();
             closeEditor();
             
-            Notification notification = Notification.show("✅ Base de datos eliminada exitosamente");
+            Notification notification = Notification.show("Base de datos eliminada");
             notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
         } catch (Exception e) {
-            Notification notification = Notification.show("❌ Error al eliminar: " + e.getMessage());
+            Notification notification = Notification.show("Error al eliminar: " + e.getMessage());
             notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
     }
@@ -638,7 +582,7 @@ public class DatabaseView extends VerticalLayout {
             boolean success = connectionTester.testConnection(database);
             
             if (success) {
-                Notification notification = Notification.show("✅ Conexión exitosa a " + database.getName());
+                Notification notification = Notification.show("Conexión exitosa");
                 notification.addThemeVariants(NotificationVariant.LUMO_SUCCESS);
                 
                 // Update status only if user can manage databases
@@ -647,7 +591,7 @@ public class DatabaseView extends VerticalLayout {
                     updateList();
                 }
             } else {
-                Notification notification = Notification.show("❌ Conexión fallida a " + database.getName());
+                Notification notification = Notification.show("Conexión fallida");
                 notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
                 
                 // Update status only if user can manage databases
@@ -657,7 +601,7 @@ public class DatabaseView extends VerticalLayout {
                 }
             }
         } catch (Exception e) {
-            Notification notification = Notification.show("❌ Error al probar conexión: " + e.getMessage());
+            Notification notification = Notification.show("Error al probar conexión: " + e.getMessage());
             notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
         }
     }
@@ -667,7 +611,7 @@ public class DatabaseView extends VerticalLayout {
      */
     private void showPermissionDeniedNotification() {
         Notification notification = Notification.show(
-            "🚫 No tienes permisos suficientes para realizar esta acción. Se requiere rol de Administrador del Sistema."
+            "No tienes permisos suficientes para realizar esta acción. Se requiere rol de Administrador del Sistema."
         );
         notification.addThemeVariants(NotificationVariant.LUMO_ERROR);
     }

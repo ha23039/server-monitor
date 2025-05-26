@@ -52,7 +52,7 @@ public class HomeView extends VerticalLayout {
             setSizeFull();
             setDefaultHorizontalComponentAlignment(Alignment.CENTER);
             getStyle()
-                .set("background", "linear-gradient(135deg, #1e3a8a 0%, #7c3aed 50%, #1e40af 100%)")
+                .set("background", "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%)")
                 .set("min-height", "100vh")
                 .set("overflow-y", "auto");
 
@@ -374,11 +374,20 @@ public class HomeView extends VerticalLayout {
         statsGrid.setAlignItems(FlexComponent.Alignment.STRETCH);
         statsGrid.getStyle().set("gap", "1rem");
 
+        // Obtener número real de usuarios (puedes ajustar esto según tu servicio)
+        String realUserCount = "N/A";
+        try {
+            // realUserCount = String.valueOf(userService.countActiveUsers());
+            realUserCount = "11"; // temporal, futuras mejoras
+        } catch (Exception e) {
+            realUserCount = "Error";
+        }
+
         statsGrid.add(
             createStatCard(VaadinIcon.HEART_O, "Salud del Sistema", "Óptima", COLOR_SECONDARY),
-            createStatCard(VaadinIcon.USERS, "Usuarios Activos", "15", COLOR_PRIMARY),
+            createStatCard(VaadinIcon.USERS, "Usuarios Activos", realUserCount, COLOR_PRIMARY),
             createStatCard(VaadinIcon.BELL_O, "Alertas Activas", "2", COLOR_WARNING),
-            createStatCard(VaadinIcon.CLOCK, "Uptime (24h)", "99.98%", COLOR_ACCENT)
+            createStatCard(VaadinIcon.CLOCK, "Uptime (24h)", "99.95%", COLOR_ACCENT)
         );
         
         statsContainer.add(title, statsGrid);
