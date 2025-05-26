@@ -11,6 +11,6 @@ import com.vaadin.flow.server.auth.AnonymousAllowed;
 public class TestView extends VerticalLayout {
     
     public TestView() {
-        add(new H1("🎉 ¡APLICACIÓN FUNCIONANDO!"));
+        add(new H1("🎉 ¡APLICACIÓN SERVER MONITOR FUNCIONANDO!"));
     }
 }
