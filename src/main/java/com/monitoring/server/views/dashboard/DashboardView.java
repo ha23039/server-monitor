@@ -200,7 +200,7 @@ public class DashboardView extends VerticalLayout {
         
         chart.getStyle()
             .set("border-radius", "16px")
-            .set("padding", "2rem")
+            .set("padding", "0rem")
             .set("border", "1px solid rgba(255,255,255,0.1)")
             .set("backdrop-filter", "blur(10px)")
             .set("position", "relative")
@@ -208,6 +208,7 @@ public class DashboardView extends VerticalLayout {
             .set("flex-direction", "column")
             .set("justify-content", "center")
             .set("align-items", "center");
+
         
         // Contenido del gráfico ultra
         VerticalLayout chartContent = new VerticalLayout();
@@ -248,7 +249,7 @@ public class DashboardView extends VerticalLayout {
         grid.getStyle()
             .set("background", "rgba(255, 255, 255, 0.02)")
             .set("border-radius", "12px")
-            .set("border", "1px solid rgba(255, 255, 255, 0.1)")
+            .set("border", "1px solid linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%)")
             .set("backdrop-filter", "blur(10px)")
             .set("--lumo-font-size-s", "0.875rem")
             .set("color", "#F9FAFB");
@@ -308,7 +309,7 @@ public class DashboardView extends VerticalLayout {
         periodTabs = new Tabs();
         periodTabs.add(new Tab("1H"), new Tab("24H"), new Tab("7D"), new Tab("1M"));
         periodTabs.getStyle()
-            .set("background", "rgba(255, 255, 255, 0.1)")
+            .set("background", "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%)")
             .set("border-radius", "8px")
             .set("padding", "0.25rem");
         
@@ -411,7 +412,7 @@ public class DashboardView extends VerticalLayout {
         header.setAlignItems(FlexComponent.Alignment.CENTER);
         
         header.getStyle()
-            .set("background", "rgba(255, 255, 255, 0.1)")
+            .set("background", "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%)")
             .set("border-radius", "16px")
             .set("padding", "1.5rem 2rem")
             .set("border", "1px solid rgba(255, 255, 255, 0.1)")
@@ -520,7 +521,7 @@ public class DashboardView extends VerticalLayout {
         footer.setAlignItems(FlexComponent.Alignment.CENTER);
         
         footer.getStyle()
-            .set("background", "rgba(255, 255, 255, 0.1)")
+            .set("background", "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%)")
             .set("border-radius", "16px")
             .set("padding", "1.5rem 2rem")
             .set("border", "1px solid rgba(255, 255, 255, 0.1)")
@@ -546,7 +547,7 @@ public class DashboardView extends VerticalLayout {
         section.setSpacing(true);
         
         section.getStyle()
-            .set("background", "rgba(255, 255, 255, 0.1)")
+            .set("background", "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%)")
             .set("border-radius", "16px")
             .set("padding", "2rem")
             .set("border", "1px solid rgba(255, 255, 255, 0.1)")
@@ -1128,7 +1129,7 @@ public class DashboardView extends VerticalLayout {
     
     private void styleUltraSelect(Select<?> select) {
         select.getStyle()
-            .set("background", "rgba(255, 255, 255, 0.1)")
+            .set("background", "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%)")
             .set("border-radius", "12px")
             .set("border", "1px solid rgba(255, 255, 255, 0.1)")
             .set("backdrop-filter", "blur(10px)")
