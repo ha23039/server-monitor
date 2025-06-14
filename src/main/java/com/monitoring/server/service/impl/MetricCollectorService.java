@@ -3,13 +3,11 @@ package com.monitoring.server.service.impl;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -77,9 +75,8 @@ public class MetricCollectorService {
      * Captura métricas del sistema y las almacena en BD
      */
     @Scheduled(fixedRate = 5000) // Cada 5 segundos
-    @Async
     @Transactional
-    public CompletableFuture<Void> collectSystemMetrics() {
+    public void collectSystemMetrics() {
         try {
             SystemMetric metric = gatherCurrentSystemMetrics();
             
@@ -95,8 +92,6 @@ public class MetricCollectorService {
         } catch (Exception e) {
             logger.error("❌ Error recolectando métricas del sistema", e);
         }
-        
-        return CompletableFuture.completedFuture(null);
     }
     
     /**
@@ -104,9 +99,8 @@ public class MetricCollectorService {
      * Captura los procesos que más recursos consumen
      */
     @Scheduled(fixedRate = 10000) // Cada 10 segundos
-    @Async
     @Transactional
-    public CompletableFuture<Void> collectHeavyProcesses() {
+    public void collectHeavyProcesses() {
         try {
             List<ProcessInfo> heavyProcesses = gatherHeavyProcesses(10);
             
@@ -121,8 +115,6 @@ public class MetricCollectorService {
         } catch (Exception e) {
             logger.error("❌ Error recolectando procesos pesados", e);
         }
-        
-        return CompletableFuture.completedFuture(null);
     }
     
     /**
