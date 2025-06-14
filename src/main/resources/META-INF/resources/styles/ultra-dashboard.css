@@ -1,0 +1,520 @@
+/* 🚀 ULTRA DASHBOARD STYLES - NIVEL ENTERPRISE */
+
+/* Variables globales ultra */
+:root {
+    --ultra-primary: #4F46E5;
+    --ultra-secondary: #10B981;
+    --ultra-accent: #F59E0B;
+    --ultra-danger: #EF4444;
+    --ultra-dark: #0f1419;
+    --ultra-darker: #1a202c;
+    --ultra-darkest: #2d3748;
+    --ultra-text: #F7FAFC;
+    --ultra-text-secondary: #A0AEC0;
+    --ultra-glass: rgba(255, 255, 255, 0.1);
+    --ultra-glass-light: rgba(255, 255, 255, 0.05);
+    --ultra-border: rgba(255, 255, 255, 0.1);
+    --ultra-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    --ultra-shadow-hover: 0 16px 48px rgba(0, 0, 0, 0.2);
+    --ultra-radius: 16px;
+    --ultra-radius-small: 12px;
+    --ultra-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Animaciones globales ultra */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.05);
+        opacity: 0.8;
+    }
+}
+
+@keyframes glow {
+    0%, 100% {
+        box-shadow: 0 0 20px rgba(79, 70, 229, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 40px rgba(79, 70, 229, 0.6);
+    }
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% center;
+    }
+    100% {
+        background-position: 200% center;
+    }
+}
+
+/* Dashboard principal ultra */
+.ultra-dashboard {
+    background: linear-gradient(135deg, var(--ultra-dark) 0%, var(--ultra-darker) 50%, var(--ultra-darkest) 100%);
+    min-height: 100vh;
+    color: var(--ultra-text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    animation: fadeInUp 0.8s ease-out;
+}
+
+/* Contenedor principal ultra */
+.ultra-main-container {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 2rem;
+    gap: 2rem;
+}
+
+/* Header ultra pro */
+.ultra-header {
+    background: var(--ultra-glass);
+    border-radius: var(--ultra-radius);
+    padding: 1.5rem 2rem;
+    border: 1px solid var(--ultra-border);
+    backdrop-filter: blur(20px);
+    box-shadow: var(--ultra-shadow);
+    animation: slideInDown 0.6s ease-out;
+}
+
+.ultra-title {
+    background: linear-gradient(135deg, var(--ultra-primary), var(--ultra-secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: 2.5rem;
+    font-weight: 800;
+    margin: 0;
+    letter-spacing: -0.025em;
+}
+
+.status-panel {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.realtime-status {
+    background: linear-gradient(135deg, var(--ultra-secondary), #059669);
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+    animation: glow 2s infinite alternate;
+}
+
+.connection-quality {
+    color: var(--ultra-text-secondary);
+    font-size: 0.875rem;
+}
+
+.performance-indicator {
+    width: 50px;
+    height: 50px;
+    position: relative;
+}
+
+.performance-ring {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: conic-gradient(var(--ultra-primary) 0deg, var(--ultra-primary) 352deg, var(--ultra-glass) 352deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: spin 10s linear infinite;
+}
+
+.performance-ring span {
+    font-weight: 700;
+    font-size: 0.75rem;
+    color: var(--ultra-text);
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Panel de métricas ultra */
+.ultra-metrics-panel {
+    background: var(--ultra-glass);
+    border-radius: var(--ultra-radius);
+    padding: 2rem;
+    border: 1px solid var(--ultra-border);
+    backdrop-filter: blur(20px);
+    box-shadow: var(--ultra-shadow);
+    animation: fadeInUp 0.6s ease-out 0.2s both;
+}
+
+.panel-title {
+    color: var(--ultra-text);
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin: 0 0 1.5rem 0;
+    background: linear-gradient(135deg, var(--ultra-text), var(--ultra-text-secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+    width: 100%;
+}
+
+/* Tarjetas de progreso ultra */
+.ultra-progress-card {
+    background: linear-gradient(135deg, var(--ultra-glass), var(--ultra-glass-light));
+    border-radius: 20px;
+    padding: 2rem;
+    border: 1px solid var(--ultra-border);
+    backdrop-filter: blur(20px);
+    box-shadow: var(--ultra-shadow);
+    transition: var(--ultra-transition);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    min-height: 220px;
+}
+
+.ultra-progress-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+    transition: left 0.5s;
+}
+
+.ultra-progress-card:hover::before {
+    left: 100%;
+}
+
+.ultra-progress-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: var(--ultra-shadow-hover);
+    border-color: var(--ultra-primary);
+}
+
+.card-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--ultra-text);
+    margin: 0;
+}
+
+.card-value {
+    font-size: 3rem;
+    font-weight: 800;
+    color: var(--ultra-primary);
+    line-height: 1;
+    margin: 0.5rem 0;
+}
+
+.card-status {
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.metric-icon {
+    transition: var(--ultra-transition);
+}
+
+.ultra-progress-card:hover .metric-icon {
+    transform: scale(1.1) rotate(5deg);
+}
+
+/* Sección de gráficos ultra */
+.ultra-chart-section {
+    background: var(--ultra-glass);
+    border-radius: var(--ultra-radius);
+    padding: 2rem;
+    border: 1px solid var(--ultra-border);
+    backdrop-filter: blur(20px);
+    box-shadow: var(--ultra-shadow);
+    animation: fadeInUp 0.6s ease-out 0.4s both;
+}
+
+.ultra-metric-chart {
+    background: var(--ultra-glass-light);
+    border-radius: var(--ultra-radius-small);
+    padding: 2rem;
+    border: 1px solid var(--ultra-border);
+    backdrop-filter: blur(10px);
+    min-height: 400px;
+    transition: var(--ultra-transition);
+}
+
+.ultra-metric-chart:hover {
+    box-shadow: var(--ultra-shadow-hover);
+}
+
+/* Sección de procesos ultra */
+.ultra-process-section {
+    background: var(--ultra-glass);
+    border-radius: var(--ultra-radius);
+    padding: 2rem;
+    border: 1px solid var(--ultra-border);
+    backdrop-filter: blur(20px);
+    box-shadow: var(--ultra-shadow);
+    animation: fadeInUp 0.6s ease-out 0.6s both;
+}
+
+.ultra-process-grid {
+    background: var(--ultra-glass-light);
+    border-radius: var(--ultra-radius-small);
+    border: 1px solid var(--ultra-border);
+    backdrop-filter: blur(10px);
+    overflow: hidden;
+}
+
+/* Grid styling ultra */
+.ultra-process-grid vaadin-grid {
+    background: transparent;
+    color: var(--ultra-text);
+}
+
+.ultra-process-grid vaadin-grid-cell-content {
+    padding: 1rem 0.75rem;
+}
+
+/* Controles avanzados ultra */
+.ultra-select {
+    background: var(--ultra-glass);
+    border-radius: var(--ultra-radius-small);
+    border: 1px solid var(--ultra-border);
+    backdrop-filter: blur(10px);
+    color: var(--ultra-text);
+    transition: var(--ultra-transition);
+}
+
+.ultra-select:hover {
+    border-color: var(--ultra-primary);
+    box-shadow: 0 0 20px rgba(79, 70, 229, 0.2);
+}
+
+/* Botones ultra pro */
+.ultra-button {
+    background: linear-gradient(135deg, var(--ultra-primary), #3730A3);
+    border-radius: var(--ultra-radius-small);
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: var(--ultra-transition);
+    box-shadow: 0 4px 14px rgba(79, 70, 229, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.ultra-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
+}
+
+.ultra-button:hover::before {
+    left: 100%;
+}
+
+.ultra-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(79, 70, 229, 0.4);
+}
+
+/* Footer ultra */
+.ultra-footer {
+    background: var(--ultra-glass);
+    border-radius: var(--ultra-radius);
+    padding: 1.5rem 2rem;
+    border: 1px solid var(--ultra-border);
+    backdrop-filter: blur(20px);
+    box-shadow: var(--ultra-shadow);
+    animation: fadeInUp 0.6s ease-out 0.8s both;
+}
+
+.system-info {
+    color: var(--ultra-text-secondary);
+    font-size: 0.875rem;
+}
+
+/* Banner de alertas ultra */
+.ultra-alert-banner {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.9), rgba(220, 38, 38, 0.8));
+    border-radius: var(--ultra-radius);
+    padding: 1rem 1.5rem;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px rgba(239, 68, 68, 0.2);
+    color: white;
+    font-weight: 600;
+    animation: slideInDown 0.5s ease-out;
+}
+
+.alert-message {
+    flex: 1;
+}
+
+.pulse-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #EF4444;
+    margin-right: 0.5rem;
+    animation: pulse 1.5s infinite;
+}
+
+/* Sección título */
+.section-title {
+    color: var(--ultra-text);
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 0;
+    background: linear-gradient(135deg, var(--ultra-text), var(--ultra-text-secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Responsive design ultra */
+@media (max-width: 1200px) {
+    .ultra-main-container {
+        padding: 1.5rem;
+    }
+    
+    .metrics-grid {
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+    }
+    
+    .ultra-title {
+        font-size: 2rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .ultra-main-container {
+        padding: 1rem;
+    }
+    
+    .metrics-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .ultra-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .status-panel {
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+    
+    .ultra-title {
+        font-size: 1.75rem;
+    }
+    
+    .ultra-progress-card {
+        min-height: 180px;
+        padding: 1.5rem;
+    }
+    
+    .card-value {
+        font-size: 2.5rem;
+    }
+}
+
+/* Efectos especiales ultra */
+.ultra-dashboard * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--ultra-primary) var(--ultra-glass);
+}
+
+.ultra-dashboard *::-webkit-scrollbar {
+    width: 8px;
+}
+
+.ultra-dashboard *::-webkit-scrollbar-track {
+    background: var(--ultra-glass);
+    border-radius: 4px;
+}
+
+.ultra-dashboard *::-webkit-scrollbar-thumb {
+    background: var(--ultra-primary);
+    border-radius: 4px;
+}
+
+.ultra-dashboard *::-webkit-scrollbar-thumb:hover {
+    background: #3730A3;
+}
+
+/* Cursor personalizado para elementos interactivos */
+.ultra-progress-card,
+.ultra-button,
+.ultra-select {
+    cursor: pointer;
+}
+
+/* Loading states ultra */
+.loading-shimmer {
+    background: linear-gradient(90deg, var(--ultra-glass) 25%, rgba(255,255,255,0.1) 50%, var(--ultra-glass) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 2s infinite;
+}
+
+/* Success states ultra */
+.success-glow {
+    box-shadow: 0 0 30px rgba(16, 185, 129, 0.4);
+    border-color: var(--ultra-secondary);
+}
+
+/* Error states ultra */
+.error-glow {
+    box-shadow: 0 0 30px rgba(239, 68, 68, 0.4);
+    border-color: var(--ultra-danger);
+}
+
+/* Transiciones suaves para todos los elementos */
+.ultra-dashboard * {
+    transition: var(--ultra-transition);
+}
