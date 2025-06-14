@@ -199,7 +199,6 @@ public class DashboardView extends VerticalLayout {
         chart.setWidth("100%");
         
         chart.getStyle()
-            .set("background", "linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02))")
             .set("border-radius", "16px")
             .set("padding", "2rem")
             .set("border", "1px solid rgba(255,255,255,0.1)")
@@ -429,7 +428,6 @@ public class DashboardView extends VerticalLayout {
         title.getStyle()
             .set("background", "linear-gradient(135deg, #4F46E5, #10B981)")
             .set("-webkit-background-clip", "text")
-            .set("-webkit-text-fill-color", "transparent")
             .set("font-size", "2.5rem")
             .set("font-weight", "800")
             .set("margin", "0");
@@ -609,34 +607,270 @@ public class DashboardView extends VerticalLayout {
         }
     }
     
+    // Método corregido para updateChartDisplay - Reemplaza el actual en DashboardView
     private void updateChartDisplay(List<SystemMetric> metrics) {
-        // Find the metricsDisplay Div by traversing the realtimeChart's children
-        Div metricsDisplay = null;
-        for (Component child : realtimeChart.getChildren().toList()) {
-            if (child instanceof VerticalLayout layout) {
-                for (Component grandChild : layout.getChildren().toList()) {
-                    if (grandChild instanceof Div div && "metrics-display".equals(div.getId().orElse(null))) {
-                        metricsDisplay = div;
-                        break;
-                    }
-                }
+        Div metricsDisplay = realtimeChart.getChildren()
+            .filter(component -> component instanceof VerticalLayout)
+            .map(component -> (VerticalLayout) component)
+            .findFirst()
+            .map(layout -> layout.getChildren()
+                .filter(child -> child instanceof Div && "metrics-display".equals(child.getId().orElse("")))
+                .map(child -> (Div) child)
+                .findFirst()
+                .orElse(null))
+            .orElse(null);
+        
+        if (metricsDisplay == null) {
+            // Si no existe, lo creamos
+            metricsDisplay = new Div();
+            metricsDisplay.setId("metrics-display");
+            
+            VerticalLayout chartContent = realtimeChart.getChildren()
+                .filter(component -> component instanceof VerticalLayout)
+                .map(component -> (VerticalLayout) component)
+                .findFirst()
+                .orElse(null);
+            
+            if (chartContent != null) {
+                chartContent.add(metricsDisplay);
             }
-            if (metricsDisplay != null) break;
         }
+        
+        // Limpiar contenido anterior
+        metricsDisplay.removeAll();
+        
+        // Configurar estilos del contenedor
+        metricsDisplay.getStyle()
+            .set("display", "grid")
+            .set("grid-template-columns", "repeat(auto-fit, minmax(280px, 1fr))")
+            .set("gap", "1.5rem")
+            .set("width", "100%")
+            .set("max-width", "900px")
+            .set("margin", "0 auto");
+        
+        if (metrics == null || metrics.isEmpty()) {
+            Span loadingSpan = new Span("📊 Cargando métricas en tiempo real...");
+            loadingSpan.getStyle()
+                .set("text-align", "center")
+                .set("color", "#9CA3AF")
+                .set("padding", "2rem")
+                .set("font-style", "italic")
+                .set("grid-column", "1 / -1");
+            metricsDisplay.add(loadingSpan);
+            return;
+        }
+        
+        // Tomar la métrica más reciente
+        SystemMetric latest = metrics.get(metrics.size() - 1);
+        
+        // Crear gráficos mini animados para cada métrica
+        Div cpuChart = createAnimatedMiniChart("🖥️ CPU", latest.getCpuUsage(), "#4F46E5", metrics, "cpu");
+        Div memoryChart = createAnimatedMiniChart("💾 RAM", latest.getMemoryUsage(), "#10B981", metrics, "memory");
+        Div diskChart = createAnimatedMiniChart("💽 Disco", latest.getDiskUsage(), "#F59E0B", metrics, "disk");
+        
+        metricsDisplay.add(cpuChart, memoryChart, diskChart);
+        
+        // Agregar animación de entrada
+        metricsDisplay.getElement().executeJs("""
+            this.style.opacity = '0';
+            this.style.transform = 'translateY(20px)';
+            
+            setTimeout(() => {
+                this.style.transition = 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
+                this.style.opacity = '1';
+                this.style.transform = 'translateY(0)';
+            }, 100);
+        """);
+    }
 
-        if (metricsDisplay != null) {
-            metricsDisplay.removeAll();
+    private Div createAnimatedMiniChart(String label, double currentValue, String color, List<SystemMetric> metrics, String type) {
+        Div chartContainer = new Div();
+        chartContainer.addClassName("mini-chart-" + type);
+        
+        // Estilos del contenedor
+        chartContainer.getStyle()
+            .set("background", "rgba(255,255,255,0.05)")
+            .set("border-radius", "16px")
+            .set("padding", "1.5rem")
+            .set("border-left", "4px solid " + color)
+            .set("position", "relative")
+            .set("overflow", "hidden")
+            .set("min-height", "140px")
+            .set("backdrop-filter", "blur(10px)")
+            .set("transition", "all 0.3s ease");
+        
+        // Header con label y valor
+        HorizontalLayout header = new HorizontalLayout();
+        header.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
+        header.setAlignItems(FlexComponent.Alignment.CENTER);
+        header.setWidthFull();
+        header.getStyle().set("margin-bottom", "1rem");
+        
+        Span labelSpan = new Span(label);
+        labelSpan.getStyle()
+            .set("font-weight", "600")
+            .set("color", color)
+            .set("font-size", "1.1rem");
+        
+        Span valueSpan = new Span(String.format("%.1f%%", currentValue));
+        valueSpan.getStyle()
+            .set("font-size", "2rem")
+            .set("font-weight", "700")
+            .set("color", currentValue > 80 ? "#EF4444" : color);
+        
+        header.add(labelSpan, valueSpan);
+        
+        // Área del gráfico SVG
+        Div svgArea = createSVGChart(metrics, type, color, currentValue);
+        
+        // Footer con información adicional
+        HorizontalLayout footer = new HorizontalLayout();
+        footer.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
+        footer.setAlignItems(FlexComponent.Alignment.CENTER);
+        footer.setWidthFull();
+        footer.getStyle().set("margin-top", "0.5rem");
+        
+        // Calcular tendencia
+        String trend = "📊";
+        if (metrics.size() > 1) {
+            double previousValue = getPreviousValue(metrics, type);
+            trend = currentValue > previousValue ? "📈" : "📉";
+        }
+        
+        Span trendSpan = new Span("Tendencia: " + trend);
+        trendSpan.getStyle()
+            .set("font-size", "0.875rem")
+            .set("color", "#9CA3AF");
+        
+        Span pointsSpan = new Span(Math.min(metrics.size(), 20) + " puntos");
+        pointsSpan.getStyle()
+            .set("font-size", "0.75rem")
+            .set("color", "#6B7280");
+        
+        footer.add(trendSpan, pointsSpan);
+        
+        // Ensamblar el gráfico
+        VerticalLayout chartLayout = new VerticalLayout();
+        chartLayout.setPadding(false);
+        chartLayout.setSpacing(false);
+        chartLayout.add(header, svgArea, footer);
+        
+        chartContainer.add(chartLayout);
+        
+        // Efectos hover
+        chartContainer.getElement().addEventListener("mouseenter", e -> {
+            chartContainer.getStyle()
+                .set("transform", "translateY(-4px)")
+                .set("box-shadow", "0 12px 40px rgba(0,0,0,0.15)")
+                .set("border-left-color", color);
+        });
+        
+        chartContainer.getElement().addEventListener("mouseleave", e -> {
+            chartContainer.getStyle()
+                .set("transform", "translateY(0)")
+                .set("box-shadow", "none");
+        });
+        
+        return chartContainer;
+    }
 
-            if (metrics != null && !metrics.isEmpty()) {
-                SystemMetric latest = metrics.get(metrics.size() - 1);
-
-                metricsDisplay.add(createChartMetricCard("🖥️ CPU", latest.getCpuUsage(), "#4F46E5"));
-                metricsDisplay.add(createChartMetricCard("💾 RAM", latest.getMemoryUsage(), "#10B981"));
-                metricsDisplay.add(createChartMetricCard("💽 Disco", latest.getDiskUsage(), "#F59E0B"));
-            } else {
-                metricsDisplay.add(new Span("📊 Cargando métricas..."));
+    private Div createSVGChart(List<SystemMetric> metrics, String type, String color, double currentValue) {
+        Div svgContainer = new Div();
+        svgContainer.setHeight("80px");
+        svgContainer.getStyle()
+            .set("position", "relative")
+            .set("width", "100%");
+        
+        // Preparar datos para el gráfico (últimos 15 puntos)
+        List<SystemMetric> recentMetrics = metrics.stream()
+            .skip(Math.max(0, metrics.size() - 15))
+            .toList();
+        
+        if (recentMetrics.isEmpty()) {
+            Span noDataSpan = new Span("📊 Sin datos");
+            noDataSpan.getStyle()
+                .set("color", "#6B7280")
+                .set("font-size", "0.875rem")
+                .set("text-align", "center")
+                .set("display", "flex")
+                .set("align-items", "center")
+                .set("justify-content", "center")
+                .set("height", "100%");
+            svgContainer.add(noDataSpan);
+            return svgContainer;
+        }
+        
+        // Crear puntos del gráfico
+        StringBuilder points = new StringBuilder();
+        StringBuilder areaPoints = new StringBuilder("0,80 ");
+        
+        for (int i = 0; i < recentMetrics.size(); i++) {
+            double value = getValue(recentMetrics.get(i), type);
+            double x = (double) i / (recentMetrics.size() - 1) * 100;
+            double y = 80 - (value / 100) * 80; // Invertir Y y escalar a 80px
+            
+            if (i > 0) {
+                points.append(" ");
+                areaPoints.append(" ");
             }
+            points.append(String.format("%.1f,%.1f", x, y));
+            areaPoints.append(String.format("%.1f,%.1f", x, y));
         }
+        areaPoints.append(" 100,80");
+        
+        // Crear el SVG
+        String svgContent = String.format("""
+            <svg width="100%%" height="80px" style="position: absolute; top: 0; left: 0;">
+                <defs>
+                    <linearGradient id="gradient-%s" x1="0%%" y1="0%%" x2="0%%" y2="100%%">
+                        <stop offset="0%%" style="stop-color:%s;stop-opacity:0.3" />
+                        <stop offset="100%%" style="stop-color:%s;stop-opacity:0.05" />
+                    </linearGradient>
+                </defs>
+                
+                <!-- Grid lines -->
+                <line x1="0" y1="20" x2="100%%" y2="20" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+                <line x1="0" y1="40" x2="100%%" y2="40" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+                <line x1="0" y1="60" x2="100%%" y2="60" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+                
+                <!-- Área bajo la curva -->
+                <polygon points="%s" fill="url(#gradient-%s)" />
+                
+                <!-- Línea principal -->
+                <polyline points="%s" fill="none" stroke="%s" stroke-width="2.5" 
+                        stroke-linecap="round" stroke-linejoin="round"
+                        style="filter: drop-shadow(0 0 4px %s40);" />
+                
+                <!-- Punto actual -->
+                <circle cx="100%%" cy="%.1f" r="3" fill="%s" stroke="white" stroke-width="2"
+                        style="filter: drop-shadow(0 0 6px %s);">
+                    <animate attributeName="r" values="3;4;3" dur="2s" repeatCount="indefinite"/>
+                </circle>
+            </svg>
+            """, 
+            type, color, color,
+            areaPoints.toString(), type,
+            points.toString(), color, color,
+            80 - (currentValue / 100) * 80, color, color
+        );
+        
+        svgContainer.getElement().setProperty("innerHTML", svgContent);
+        
+        return svgContainer;
+    }
+
+    private double getValue(SystemMetric metric, String type) {
+        return switch (type) {
+            case "cpu" -> metric.getCpuUsage();
+            case "memory" -> metric.getMemoryUsage();
+            case "disk" -> metric.getDiskUsage();
+            default -> 0.0;
+        };
+    }
+
+    private double getPreviousValue(List<SystemMetric> metrics, String type) {
+        if (metrics.size() < 2) return 0.0;
+        return getValue(metrics.get(metrics.size() - 2), type);
     }
     
     @SuppressWarnings("unused")
@@ -761,22 +995,136 @@ public class DashboardView extends VerticalLayout {
         return container;
     }
     
+    // Método adicional para agregar información de proceso más detallada
+    private Span createEnhancedProcessName(ProcessInfo process) {
+        String icon = getProcessIcon(process.getProcessName());
+        String processName = process.getProcessName();
+        
+        // Detectar si es un proceso crítico del sistema
+        boolean isSystemCritical = isSystemCriticalProcess(processName);
+        boolean isHighResource = process.getCpuUsage() > 15 || process.getMemoryUsage() > 10;
+        
+        Span container = new Span();
+        container.getStyle()
+            .set("display", "flex")
+            .set("align-items", "center")
+            .set("gap", "0.5rem");
+        
+        // Icono del proceso
+        Span iconSpan = new Span(icon);
+        iconSpan.getStyle().set("font-size", "1.2rem");
+        
+        // Nombre del proceso
+        Span nameSpan = new Span(processName);
+        nameSpan.getStyle()
+            .set("font-weight", "600")
+            .set("color", isSystemCritical ? "#F59E0B" : "#F9FAFB");
+        
+        // Badge para procesos de alto consumo
+        if (isHighResource) {
+            Span highResourceBadge = new Span("🔥");
+            highResourceBadge.getStyle()
+                .set("font-size", "0.8rem")
+                .set("margin-left", "0.25rem");
+            container.add(iconSpan, nameSpan, highResourceBadge);
+        } else {
+            container.add(iconSpan, nameSpan);
+        }
+        
+        return container;
+    }
+
+    private boolean isSystemCriticalProcess(String processName) {
+        if (processName == null) return false;
+        String name = processName.toLowerCase();
+        
+        return name.contains("kernel") || 
+            name.contains("init") || 
+            name.contains("systemd") || 
+            name.contains("ssh") || 
+            name.contains("network") ||
+            name.equals("java") && name.contains("server-monitor");
+    }
+
+    // Método para simular más datos de procesos (para demostración)
+    private void addDemoProcessData() {
+        // Este método se puede usar en desarrollo para mostrar más variedad
+        // En producción, OSHI captura los procesos reales
+    }
+    // Mejorar el método getProcessIcon en DashboardView para más procesos
     private String getProcessIcon(String processName) {
         if (processName == null) return "⚙️";
         String name = processName.toLowerCase();
         
-        if (name.contains("java")) return "☕";
-        if (name.contains("chrome") || name.contains("firefox")) return "🌐";
-        if (name.contains("code") || name.contains("idea")) return "💻";
-        if (name.contains("mysql") || name.contains("postgres")) return "🗄️";
-        if (name.contains("node")) return "🟢";
-        if (name.contains("python")) return "🐍";
-        if (name.contains("docker")) return "🐳";
-        if (name.contains("nginx") || name.contains("apache")) return "🌐";
+        // Procesos Java y JVM
+        if (name.contains("java") || name.contains("openjdk")) return "☕";
+        if (name.contains("spring") || name.contains("tomcat")) return "🍃";
+        
+        // Navegadores
+        if (name.contains("chrome") || name.contains("chromium")) return "🌐";
+        if (name.contains("firefox")) return "🦊";
+        if (name.contains("safari")) return "🧭";
+        if (name.contains("edge")) return "🌊";
+        
+        // Editores y IDEs
+        if (name.contains("code") || name.contains("vscode")) return "💻";
+        if (name.contains("idea") || name.contains("intellij")) return "🧠";
+        if (name.contains("eclipse")) return "🌘";
+        if (name.contains("vim") || name.contains("nano")) return "📝";
+        
+        // Bases de datos
+        if (name.contains("mysql") || name.contains("mariadb")) return "🐬";
+        if (name.contains("postgres") || name.contains("postgresql")) return "🐘";
+        if (name.contains("mongo") || name.contains("mongodb")) return "🍃";
+        if (name.contains("redis")) return "🔴";
+        if (name.contains("elasticsearch")) return "🔍";
+        
+        // Lenguajes y runtimes
+        if (name.contains("node") || name.contains("nodejs")) return "🟢";
+        if (name.contains("python") || name.contains("python3")) return "🐍";
+        if (name.contains("php") || name.contains("php-fpm")) return "🐘";
+        if (name.contains("ruby") || name.contains("rails")) return "💎";
+        if (name.contains("go") || name.contains("golang")) return "🐹";
+        if (name.contains("rust") || name.contains("cargo")) return "🦀";
+        
+        // Contenedores y orquestación
+        if (name.contains("docker") || name.contains("dockerd")) return "🐳";
+        if (name.contains("kubernetes") || name.contains("kubectl")) return "⛵";
+        if (name.contains("containerd")) return "📦";
+        
+        // Servidores web y proxy
+        if (name.contains("nginx")) return "🌐";
+        if (name.contains("apache") || name.contains("httpd")) return "🪶";
+        if (name.contains("caddy")) return "⚡";
+        if (name.contains("traefik")) return "🔀";
+        
+        // Sistemas y servicios
         if (name.contains("systemd")) return "⚙️";
-        if (name.contains("kernel")) return "🔧";
+        if (name.contains("kernel") || name.contains("kthread")) return "🔧";
+        if (name.contains("ssh") || name.contains("sshd")) return "🔐";
+        if (name.contains("cron") || name.contains("anacron")) return "⏰";
+        if (name.contains("rsyslog") || name.contains("syslog")) return "📋";
+        
+        // Procesos de red
+        if (name.contains("network") || name.contains("netplan")) return "🌐";
+        if (name.contains("dhcp")) return "📡";
+        if (name.contains("dns") || name.contains("bind")) return "🎯";
+        
+        // Procesos de monitoreo
+        if (name.contains("htop") || name.contains("top")) return "📊";
+        if (name.contains("monitor") || name.contains("watch")) return "👀";
+        if (name.contains("prometheus") || name.contains("grafana")) return "📈";
+        
+        // Procesos Alpine Linux específicos
+        if (name.contains("busybox")) return "📦";
+        if (name.contains("ash") || name.contains("sh")) return "🐚";
+        if (name.contains("init")) return "🚀";
+        
+        // Default
         return "⚙️";
     }
+
+
     
     private void styleUltraSelect(Select<?> select) {
         select.getStyle()
