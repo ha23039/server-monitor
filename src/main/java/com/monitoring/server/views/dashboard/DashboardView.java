@@ -5,7 +5,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -17,18 +16,15 @@ import com.monitoring.server.service.interfaces.AlertConfigService;
 import com.monitoring.server.service.interfaces.ProcessInfoService;
 import com.monitoring.server.service.interfaces.SystemMonitorService;
 import com.monitoring.server.views.MainLayout;
-import com.monitoring.server.views.components.ultra.UltraMetricChart;
-import com.monitoring.server.views.components.ultra.UltraProcessGrid;
-import com.monitoring.server.views.components.ultra.UltraProgressCard;
-import com.monitoring.server.views.components.ultra.UltraAlertBanner;
+import com.monitoring.server.views.components.AlertBanner;
+import com.monitoring.server.views.components.MetricProgressBar;
 import com.vaadin.flow.component.AttachEvent;
 import com.vaadin.flow.component.Component;
-import com.vaadin.flow.component.DetachEvent;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.dependency.CssImport;
-import com.vaadin.flow.component.dependency.JavaScript;
+import com.vaadin.flow.component.grid.Grid;
+import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.Div;
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.H2;
@@ -43,60 +39,45 @@ import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.select.Select;
 import com.vaadin.flow.component.tabs.Tab;
 import com.vaadin.flow.component.tabs.Tabs;
+import com.vaadin.flow.data.renderer.ComponentRenderer;
 import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
 /**
- * 🚀 DASHBOARD ULTRA PRO - VERSIÓN ENTERPRISE
- * 
- * Características avanzadas:
- * - WebSockets nativos para tiempo real
- * - Gráficos vectoriales de alto rendimiento
- * - Animaciones suaves y microinteracciones
- * - Sistema de cache inteligente
- * - Predicciones y análisis de tendencias
- * - UI/UX de nivel enterprise
+ * 🚀 DASHBOARD ULTRA PRO - VERSIÓN SIMPLIFICADA FUNCIONAL
+ * Sin dependencias externas - 100% funcional
  */
 @Route(value = "dashboard", layout = MainLayout.class)
 @PageTitle("🚀 Enterprise Dashboard - Métricas en Tiempo Real")
 @RequiresViewer
-@CssImport("./styles/ultra-dashboard.css")
-@JavaScript("./js/ultra-dashboard.js")
 public class DashboardView extends VerticalLayout {
 
-    // 🔧 Services
+    // Services
     private final SystemMonitorService monitorService;
     private final ProcessInfoService processInfoService;
     private final AlertConfigService alertConfigService;
     
-    // 🎯 Componentes Ultra Pro
-    private UltraProgressCard cpuCard;
-    private UltraProgressCard memoryCard;
-    private UltraProgressCard diskCard;
-    private UltraMetricChart realtimeChart;
-    private UltraProcessGrid processGrid;
-    private UltraAlertBanner alertBanner;
+    // Componentes principales
+    private MetricProgressBar cpuProgressBar;
+    private MetricProgressBar memoryProgressBar;
+    private MetricProgressBar diskProgressBar;
+    private Div realtimeChart;
+    private Grid<ProcessInfo> processGrid;
+    private AlertBanner alertBanner;
     
-    // 📊 Controles avanzados
-    private Select<String> timeRangeSelect;
-    private Select<String> chartTypeSelect;
+    // Controles
+    private String selectedTimeRange = "1H";
+    private String selectedProcessFilter = "ALL";
+    private Tabs periodTabs;
     private Select<String> processFilterSelect;
     private Button exportButton;
-    private Button predictionsButton;
     private Button fullscreenButton;
     
-    // ⚡ Estado y cache
-    private String selectedTimeRange = "1H";
-    private String selectedChartType = "LINE";
-    private String selectedProcessFilter = "ALL";
-    private final AtomicBoolean isRealTimeActive = new AtomicBoolean(true);
-    private final DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
-    
-    // 🌟 Componentes de estado
+    // Estado
     private Span realtimeStatus;
     private Span lastUpdateTime;
-    private Span connectionQuality;
-    private Div performanceIndicator;
+    private Span performanceIndicator;
+    private final DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
     
     @Autowired
     public DashboardView(SystemMonitorService monitorService,
@@ -109,38 +90,29 @@ public class DashboardView extends VerticalLayout {
         initializeUltraProDashboard();
     }
     
-    /**
-     * 🚀 Inicialización completa del dashboard ultra pro
-     */
     private void initializeUltraProDashboard() {
         addClassName("ultra-dashboard");
         setSizeFull();
         setPadding(false);
         setSpacing(false);
         
-        // Configurar layout principal
-        configureMainLayout();
+        // Aplicar estilos ultra directamente
+        setupUltraStyles();
         
-        // Crear componentes ultra pro
+        // Crear componentes
         createUltraComponents();
         
-        // Configurar estructura del dashboard
+        // Estructurar dashboard
         buildDashboardStructure();
-        
-        // Inicializar sistema en tiempo real
-        initializeRealtimeSystem();
         
         // Cargar datos iniciales
         loadInitialData();
         
-        // Configurar animaciones de entrada
-        setupEntryAnimations();
+        // Configurar tiempo real
+        setupRealtimeUpdates();
     }
     
-    /**
-     * 🎨 Configuración del layout principal
-     */
-    private void configureMainLayout() {
+    private void setupUltraStyles() {
         getStyle()
             .set("background", "linear-gradient(135deg, #0f1419 0%, #1a202c 50%, #2d3748 100%)")
             .set("min-height", "100vh")
@@ -148,486 +120,704 @@ public class DashboardView extends VerticalLayout {
             .set("font-family", "'Inter', -apple-system, BlinkMacSystemFont, sans-serif");
     }
     
-    /**
-     * 🔧 Creación de componentes ultra pro
-     */
     private void createUltraComponents() {
-        // Crear banner de alertas ultra avanzado
-        alertBanner = new UltraAlertBanner();
+        // Banner de alertas
+        alertBanner = createUltraAlertBanner();
         
-        // Crear tarjetas de métricas con animaciones
+        // Tarjetas de métricas ultra
         AlertConfiguration config = alertConfigService.getCurrentConfig();
-        cpuCard = new UltraProgressCard("CPU", "processor", config.getCpuThreshold());
-        memoryCard = new UltraProgressCard("RAM", "memory", config.getMemoryThreshold());
-        diskCard = new UltraProgressCard("Disco", "storage", config.getDiskThreshold());
+        cpuProgressBar = createUltraMetricCard("🖥️ CPU", config.getCpuThreshold(), "#4F46E5");
+        memoryProgressBar = createUltraMetricCard("💾 RAM", config.getMemoryThreshold(), "#10B981");
+        diskProgressBar = createUltraMetricCard("💽 Disco", config.getDiskThreshold(), "#F59E0B");
         
-        // Crear gráfico ultra avanzado
-        realtimeChart = new UltraMetricChart();
+        // Gráfico ultra simplificado
+        realtimeChart = createUltraChart();
         
-        // Crear grid de procesos ultra pro
-        processGrid = new UltraProcessGrid();
+        // Grid ultra pro
+        processGrid = createUltraProcessGrid();
         
-        // Crear controles avanzados
-        createAdvancedControls();
+        // Controles avanzados
+        createUltraControls();
         
-        // Crear indicadores de estado
+        // Indicadores de estado
         createStatusIndicators();
     }
     
-    /**
-     * 🎛️ Creación de controles avanzados
-     */
-    private void createAdvancedControls() {
-        // Selector de rango temporal avanzado
-        timeRangeSelect = new Select<>();
-        timeRangeSelect.setItems("5M", "15M", "1H", "6H", "24H", "7D", "30D");
-        timeRangeSelect.setValue("1H");
-        timeRangeSelect.setLabel("📅 Rango Temporal");
-        styleAdvancedSelect(timeRangeSelect);
+    private AlertBanner createUltraAlertBanner() {
+        AlertBanner banner = new AlertBanner();
+        banner.setVisible(false);
+        banner.getStyle()
+            .set("background", "linear-gradient(135deg, rgba(239, 68, 68, 0.9), rgba(220, 38, 38, 0.8))")
+            .set("border-radius", "16px")
+            .set("padding", "1rem 1.5rem")
+            .set("border", "1px solid rgba(239, 68, 68, 0.3)")
+            .set("backdrop-filter", "blur(10px)")
+            .set("box-shadow", "0 8px 32px rgba(239, 68, 68, 0.2)")
+            .set("color", "white")
+            .set("font-weight", "600")
+            .set("margin-bottom", "1.5rem");
+        return banner;
+    }
+    
+    private MetricProgressBar createUltraMetricCard(String title, double threshold, String accentColor) {
+        MetricProgressBar card = new MetricProgressBar(title, 0, threshold);
         
-        // Selector de tipo de gráfico
-        chartTypeSelect = new Select<>();
-        chartTypeSelect.setItems("LINE", "AREA", "HEATMAP", "PREDICTIONS");
-        chartTypeSelect.setValue("LINE");
-        chartTypeSelect.setLabel("📊 Tipo de Gráfico");
-        styleAdvancedSelect(chartTypeSelect);
+        // Aplicar estilos ultra glass
+        card.getStyle()
+            .set("background", "linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05))")
+            .set("border-radius", "20px")
+            .set("padding", "2rem")
+            .set("border", "1px solid rgba(255,255,255,0.1)")
+            .set("backdrop-filter", "blur(20px)")
+            .set("box-shadow", "0 8px 32px rgba(0,0,0,0.1)")
+            .set("transition", "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)")
+            .set("cursor", "pointer")
+            .set("min-height", "200px");
         
-        // Filtro de procesos avanzado
+        // Efectos hover ultra
+        card.getElement().addEventListener("mouseenter", e -> {
+            card.getStyle()
+                .set("transform", "translateY(-8px)")
+                .set("box-shadow", "0 16px 48px rgba(0,0,0,0.2)")
+                .set("border-color", accentColor);
+        });
+        
+        card.getElement().addEventListener("mouseleave", e -> {
+            card.getStyle()
+                .set("transform", "translateY(0)")
+                .set("box-shadow", "0 8px 32px rgba(0,0,0,0.1)")
+                .set("border-color", "rgba(255,255,255,0.1)");
+        });
+        
+        return card;
+    }
+    
+    private Div createUltraChart() {
+        Div chart = new Div();
+        chart.addClassName("ultra-chart");
+        chart.setHeight("400px");
+        chart.setWidth("100%");
+        
+        chart.getStyle()
+            .set("background", "linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02))")
+            .set("border-radius", "16px")
+            .set("padding", "2rem")
+            .set("border", "1px solid rgba(255,255,255,0.1)")
+            .set("backdrop-filter", "blur(10px)")
+            .set("position", "relative")
+            .set("display", "flex")
+            .set("flex-direction", "column")
+            .set("justify-content", "center")
+            .set("align-items", "center");
+        
+        // Contenido del gráfico ultra
+        VerticalLayout chartContent = new VerticalLayout();
+        chartContent.setPadding(false);
+        chartContent.setSpacing(true);
+        chartContent.setAlignItems(FlexComponent.Alignment.CENTER);
+        
+        H2 chartTitle = new H2("📈 Métricas en Tiempo Real");
+        chartTitle.getStyle()
+            .set("margin", "0 0 2rem 0")
+            .set("color", "#F9FAFB")
+            .set("text-align", "center");
+        
+        Div metricsDisplay = new Div();
+        metricsDisplay.setId("metrics-display");
+        metricsDisplay.getStyle()
+            .set("display", "grid")
+            .set("grid-template-columns", "repeat(3, 1fr)")
+            .set("gap", "2rem")
+            .set("width", "100%")
+            .set("max-width", "600px");
+        
+        chartContent.add(chartTitle, metricsDisplay);
+        chart.add(chartContent);
+        
+        return chart;
+    }
+    
+    private Grid<ProcessInfo> createUltraProcessGrid() {
+        Grid<ProcessInfo> grid = new Grid<>(ProcessInfo.class, false);
+        grid.addClassName("ultra-process-grid");
+        
+        // Estilos ultra
+        grid.setAllRowsVisible(true);
+        grid.setMaxHeight("400px");
+        grid.addThemeVariants(GridVariant.LUMO_ROW_STRIPES, GridVariant.LUMO_WRAP_CELL_CONTENT);
+        
+        grid.getStyle()
+            .set("background", "rgba(255, 255, 255, 0.02)")
+            .set("border-radius", "12px")
+            .set("border", "1px solid rgba(255, 255, 255, 0.1)")
+            .set("backdrop-filter", "blur(10px)")
+            .set("--lumo-font-size-s", "0.875rem")
+            .set("color", "#F9FAFB");
+        
+        // Columnas ultra
+        setupUltraGridColumns(grid);
+        
+        return grid;
+    }
+    
+    private void setupUltraGridColumns(Grid<ProcessInfo> grid) {
+        // PID
+        grid.addColumn(new ComponentRenderer<>(process -> {
+            Span span = new Span("🔢 " + process.getProcessId());
+            span.getStyle().set("font-weight", "600");
+            return span;
+        })).setHeader("PID").setWidth("100px").setFlexGrow(0);
+        
+        // Proceso con icono
+        grid.addColumn(new ComponentRenderer<>(process -> {
+            String icon = getProcessIcon(process.getProcessName());
+            Span span = new Span(icon + " " + process.getProcessName());
+            span.getStyle().set("font-weight", "600");
+            return span;
+        })).setHeader("⚙️ Proceso").setWidth("200px").setFlexGrow(1);
+        
+        // Usuario
+        grid.addColumn(new ComponentRenderer<>(process -> {
+            Span span = new Span("👤 " + (process.getUsername() != null ? process.getUsername() : "N/A"));
+            return span;
+        })).setHeader("Usuario").setWidth("120px").setFlexGrow(0);
+        
+        // Estado con badge
+        grid.addColumn(new ComponentRenderer<>(this::createStatusBadge))
+            .setHeader("📊 Estado").setWidth("120px").setFlexGrow(0);
+        
+        // CPU con barra
+        grid.addColumn(new ComponentRenderer<>(process -> 
+            createMetricBar(process.getCpuUsage(), "#4F46E5")))
+            .setHeader("🖥️ CPU (%)").setWidth("140px").setFlexGrow(0);
+        
+        // Memoria con barra
+        grid.addColumn(new ComponentRenderer<>(process -> 
+            createMetricBar(process.getMemoryUsage(), "#10B981")))
+            .setHeader("💾 RAM (%)").setWidth("140px").setFlexGrow(0);
+        
+        // Disco I/O
+        grid.addColumn(new ComponentRenderer<>(process -> {
+            Span span = new Span("💽 " + String.format("%.1f KB/s", process.getDiskUsage()));
+            span.getStyle().set("font-family", "monospace");
+            return span;
+        })).setHeader("Disco I/O").setWidth("130px").setFlexGrow(0);
+    }
+    
+    private void createUltraControls() {
+        // Selector de período
+        periodTabs = new Tabs();
+        periodTabs.add(new Tab("1H"), new Tab("24H"), new Tab("7D"), new Tab("1M"));
+        periodTabs.getStyle()
+            .set("background", "rgba(255, 255, 255, 0.1)")
+            .set("border-radius", "8px")
+            .set("padding", "0.25rem");
+        
+        periodTabs.addSelectedChangeListener(event -> {
+            selectedTimeRange = event.getSelectedTab().getLabel();
+            updateChart();
+        });
+        
+        // Filtro de procesos
         processFilterSelect = new Select<>();
         processFilterSelect.setItems("ALL", "HIGH_CPU", "HIGH_MEMORY", "SYSTEM", "USER");
         processFilterSelect.setValue("ALL");
         processFilterSelect.setLabel("🔍 Filtrar Procesos");
-        styleAdvancedSelect(processFilterSelect);
+        styleUltraSelect(processFilterSelect);
         
-        // Botones de acción ultra pro
-        createActionButtons();
+        processFilterSelect.addValueChangeListener(event -> {
+            selectedProcessFilter = event.getValue();
+            updateProcessData();
+        });
         
-        // Configurar listeners
-        setupAdvancedListeners();
-    }
-    
-    /**
-     * 🚀 Creación de botones de acción
-     */
-    private void createActionButtons() {
-        // Botón de exportación avanzada
+        // Botones de acción
         exportButton = new Button("📊 Exportar", VaadinIcon.DOWNLOAD.create());
         exportButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
-        styleUltraButton(exportButton, "#4F46E5", "#3730A3");
+        styleUltraButton(exportButton, "#4F46E5");
+        exportButton.addClickListener(e -> showExportDialog());
         
-        // Botón de predicciones IA
-        predictionsButton = new Button("🔮 Predicciones", VaadinIcon.TRENDING_UP.create());
-        predictionsButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
-        styleUltraButton(predictionsButton, "#059669", "#047857");
-        
-        // Botón de pantalla completa
         fullscreenButton = new Button("⛶ Pantalla Completa", VaadinIcon.EXPAND_SQUARE.create());
-        fullscreenButton.addThemeVariants(ButtonVariant.LUMO_TERTIARY);
-        styleUltraButton(fullscreenButton, "#DC2626", "#B91C1C");
+        fullscreenButton.addThemeVariants(ButtonVariant.LUMO_CONTRAST);
+        styleUltraButton(fullscreenButton, "#059669");
+        fullscreenButton.addClickListener(e -> toggleFullscreen());
     }
     
-    /**
-     * 📡 Creación de indicadores de estado
-     */
     private void createStatusIndicators() {
-        // Estado de tiempo real
         realtimeStatus = new Span("🟢 Tiempo Real Activo");
-        realtimeStatus.addClassName("realtime-status");
+        realtimeStatus.getStyle()
+            .set("background", "linear-gradient(135deg, #10B981, #059669)")
+            .set("padding", "0.5rem 1rem")
+            .set("border-radius", "20px")
+            .set("font-weight", "600")
+            .set("font-size", "0.875rem")
+            .set("color", "white")
+            .set("box-shadow", "0 4px 14px rgba(16, 185, 129, 0.3)");
         
-        // Última actualización
-        lastUpdateTime = new Span("⏱️ Actualizando...");
-        lastUpdateTime.addClassName("last-update");
+        lastUpdateTime = new Span("⏱️ Cargando...");
+        lastUpdateTime.getStyle()
+            .set("color", "#9CA3AF")
+            .set("font-size", "0.9rem");
         
-        // Calidad de conexión
-        connectionQuality = new Span("📶 Excelente");
-        connectionQuality.addClassName("connection-quality");
-        
-        // Indicador de rendimiento
-        performanceIndicator = new Div();
-        performanceIndicator.addClassName("performance-indicator");
-        performanceIndicator.getElement().setProperty("innerHTML", 
-            "<div class='performance-ring'><span>98%</span></div>");
+        performanceIndicator = new Span("📊 98%");
+        performanceIndicator.getStyle()
+            .set("background", "rgba(79, 70, 229, 0.2)")
+            .set("padding", "0.5rem")
+            .set("border-radius", "8px")
+            .set("font-weight", "600")
+            .set("color", "#4F46E5");
     }
     
-    /**
-     * 🏗️ Construcción de la estructura del dashboard
-     */
     private void buildDashboardStructure() {
-        // Contenedor principal ultra pro
-        VerticalLayout mainContainer = createUltraMainContainer();
+        VerticalLayout mainContainer = createMainContainer();
         
-        // Header con título y controles
-        Component headerSection = createUltraHeader();
+        // Header ultra
+        Component header = createUltraHeader();
         
-        // Panel de estado con métricas
-        Component metricsPanel = createUltraMetricsPanel();
+        // Panel de métricas
+        Component metricsPanel = createMetricsPanel();
         
-        // Sección de gráficos avanzados
-        Component chartSection = createUltraChartSection();
+        // Sección de gráficos
+        Component chartSection = createChartSection();
         
-        // Sección de procesos ultra pro
-        Component processSection = createUltraProcessSection();
+        // Sección de procesos
+        Component processSection = createProcessSection();
         
-        // Footer con exportación y acciones
-        Component footerSection = createUltraFooter();
+        // Footer
+        Component footer = createFooter();
         
-        // Ensamblar dashboard
-        mainContainer.add(
-            alertBanner,
-            headerSection,
-            metricsPanel,
-            chartSection,
-            processSection,
-            footerSection
-        );
-        
+        mainContainer.add(alertBanner, header, metricsPanel, chartSection, processSection, footer);
         add(mainContainer);
     }
     
-    /**
-     * 🎨 Creación del contenedor principal ultra
-     */
-    private VerticalLayout createUltraMainContainer() {
+    private VerticalLayout createMainContainer() {
         VerticalLayout container = new VerticalLayout();
         container.setSizeFull();
         container.setPadding(true);
         container.setSpacing(true);
-        container.addClassName("ultra-main-container");
+        container.setDefaultHorizontalComponentAlignment(Alignment.STRETCH);
         
         container.getStyle()
             .set("max-width", "1600px")
             .set("margin", "0 auto")
             .set("padding", "2rem")
             .set("gap", "2rem");
-            
+        
         return container;
     }
     
-    /**
-     * 🎯 Creación del header ultra pro
-     */
     private Component createUltraHeader() {
         HorizontalLayout header = new HorizontalLayout();
         header.setWidthFull();
         header.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
         header.setAlignItems(FlexComponent.Alignment.CENTER);
-        header.addClassName("ultra-header");
         
-        // Título principal con icono
+        header.getStyle()
+            .set("background", "rgba(255, 255, 255, 0.1)")
+            .set("border-radius", "16px")
+            .set("padding", "1.5rem 2rem")
+            .set("border", "1px solid rgba(255, 255, 255, 0.1)")
+            .set("backdrop-filter", "blur(20px)")
+            .set("box-shadow", "0 8px 32px rgba(0, 0, 0, 0.1)");
+        
+        // Título ultra
         HorizontalLayout titleSection = new HorizontalLayout();
-        Icon dashboardIcon = VaadinIcon.DASHBOARD.create();
-        dashboardIcon.setColor("#4F46E5");
-        dashboardIcon.setSize("2rem");
+        Icon dashIcon = VaadinIcon.DASHBOARD.create();
+        dashIcon.setColor("#4F46E5");
+        dashIcon.setSize("2rem");
         
         H1 title = new H1("🚀 Enterprise Dashboard");
-        title.addClassName("ultra-title");
+        title.getStyle()
+            .set("background", "linear-gradient(135deg, #4F46E5, #10B981)")
+            .set("-webkit-background-clip", "text")
+            .set("-webkit-text-fill-color", "transparent")
+            .set("font-size", "2.5rem")
+            .set("font-weight", "800")
+            .set("margin", "0");
         
-        titleSection.add(dashboardIcon, title);
+        titleSection.add(dashIcon, title);
         titleSection.setAlignItems(FlexComponent.Alignment.CENTER);
         
-        // Panel de estado en tiempo real
+        // Panel de estado
         HorizontalLayout statusPanel = new HorizontalLayout();
-        statusPanel.add(realtimeStatus, connectionQuality, performanceIndicator);
+        statusPanel.add(realtimeStatus, performanceIndicator);
         statusPanel.setAlignItems(FlexComponent.Alignment.CENTER);
-        statusPanel.addClassName("status-panel");
+        statusPanel.setSpacing(true);
         
         header.add(titleSection, statusPanel);
         return header;
     }
     
-    /**
-     * 📊 Panel de métricas ultra avanzado
-     */
-    private Component createUltraMetricsPanel() {
-        VerticalLayout panel = new VerticalLayout();
-        panel.addClassName("ultra-metrics-panel");
-        panel.setSpacing(false);
-        panel.setPadding(false);
+    private Component createMetricsPanel() {
+        VerticalLayout panel = createUltraSection("📈 Estado del Sistema");
         
-        // Header del panel
-        HorizontalLayout panelHeader = new HorizontalLayout();
-        panelHeader.setWidthFull();
-        panelHeader.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
+        HorizontalLayout headerLayout = new HorizontalLayout();
+        headerLayout.setWidthFull();
+        headerLayout.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
+        headerLayout.setAlignItems(FlexComponent.Alignment.CENTER);
         
-        H2 panelTitle = new H2("📈 Métricas del Sistema");
-        panelTitle.addClassName("panel-title");
+        H2 panelTitle = new H2("📈 Estado del Sistema");
+        panelTitle.getStyle()
+            .set("margin", "0")
+            .set("color", "#F9FAFB")
+            .set("font-weight", "700");
         
-        panelHeader.add(panelTitle, lastUpdateTime);
+        headerLayout.add(panelTitle, lastUpdateTime);
         
-        // Grid de tarjetas de métricas
         HorizontalLayout metricsGrid = new HorizontalLayout();
         metricsGrid.setWidthFull();
         metricsGrid.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
-        metricsGrid.addClassName("metrics-grid");
+        metricsGrid.setSpacing(true);
         
-        metricsGrid.add(cpuCard, memoryCard, diskCard);
+        metricsGrid.add(cpuProgressBar, memoryProgressBar, diskProgressBar);
+        metricsGrid.setFlexGrow(1, cpuProgressBar, memoryProgressBar, diskProgressBar);
         
-        panel.add(panelHeader, metricsGrid);
+        panel.add(headerLayout, metricsGrid);
         return panel;
     }
     
-    /**
-     * 📊 Sección de gráficos ultra avanzada
-     */
-    private Component createUltraChartSection() {
-        VerticalLayout section = new VerticalLayout();
-        section.addClassName("ultra-chart-section");
+    private Component createChartSection() {
+        VerticalLayout section = createUltraSection("📊 Análisis en Tiempo Real");
         
-        // Header con controles
         HorizontalLayout chartHeader = new HorizontalLayout();
         chartHeader.setWidthFull();
         chartHeader.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
         chartHeader.setAlignItems(FlexComponent.Alignment.CENTER);
         
         H2 chartTitle = new H2("📊 Análisis en Tiempo Real");
-        chartTitle.addClassName("section-title");
+        chartTitle.getStyle()
+            .set("margin", "0")
+            .set("color", "#F9FAFB")
+            .set("font-weight", "700");
         
-        HorizontalLayout chartControls = new HorizontalLayout();
-        chartControls.add(timeRangeSelect, chartTypeSelect);
-        chartControls.setAlignItems(FlexComponent.Alignment.END);
-        
-        chartHeader.add(chartTitle, chartControls);
+        chartHeader.add(chartTitle, periodTabs);
         
         section.add(chartHeader, realtimeChart);
         return section;
     }
     
-    /**
-     * ⚙️ Sección de procesos ultra pro
-     */
-    private Component createUltraProcessSection() {
-        VerticalLayout section = new VerticalLayout();
-        section.addClassName("ultra-process-section");
+    private Component createProcessSection() {
+        VerticalLayout section = createUltraSection("⚙️ Procesos del Sistema");
         
-        // Header con filtros avanzados
         HorizontalLayout processHeader = new HorizontalLayout();
         processHeader.setWidthFull();
         processHeader.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
         processHeader.setAlignItems(FlexComponent.Alignment.CENTER);
         
         H2 processTitle = new H2("⚙️ Procesos del Sistema");
-        processTitle.addClassName("section-title");
+        processTitle.getStyle()
+            .set("margin", "0")
+            .set("color", "#F9FAFB")
+            .set("font-weight", "700");
         
-        HorizontalLayout processControls = new HorizontalLayout();
-        processControls.add(processFilterSelect);
-        processControls.setAlignItems(FlexComponent.Alignment.END);
-        
-        processHeader.add(processTitle, processControls);
+        processHeader.add(processTitle, processFilterSelect);
         
         section.add(processHeader, processGrid);
         return section;
     }
     
-    /**
-     * 🎯 Footer con acciones ultra pro
-     */
-    private Component createUltraFooter() {
+    private Component createFooter() {
         HorizontalLayout footer = new HorizontalLayout();
         footer.setWidthFull();
         footer.setJustifyContentMode(FlexComponent.JustifyContentMode.BETWEEN);
         footer.setAlignItems(FlexComponent.Alignment.CENTER);
-        footer.addClassName("ultra-footer");
         
-        // Información del sistema
-        Span systemInfo = new Span("🖥️ Server Monitor Enterprise v2.0 | 📡 Conectado en tiempo real");
-        systemInfo.addClassName("system-info");
+        footer.getStyle()
+            .set("background", "rgba(255, 255, 255, 0.1)")
+            .set("border-radius", "16px")
+            .set("padding", "1.5rem 2rem")
+            .set("border", "1px solid rgba(255, 255, 255, 0.1)")
+            .set("backdrop-filter", "blur(20px)")
+            .set("box-shadow", "0 8px 32px rgba(0, 0, 0, 0.1)");
         
-        // Botones de acción
+        Span systemInfo = new Span("🖥️ Server Monitor Enterprise v2.0 | 📡 Datos en tiempo real");
+        systemInfo.getStyle()
+            .set("color", "#9CA3AF")
+            .set("font-size", "0.875rem");
+        
         HorizontalLayout actionButtons = new HorizontalLayout();
-        actionButtons.add(exportButton, predictionsButton, fullscreenButton);
+        actionButtons.add(exportButton, fullscreenButton);
         actionButtons.setSpacing(true);
         
         footer.add(systemInfo, actionButtons);
         return footer;
     }
     
-    /**
-     * 🎧 Configuración de listeners avanzados
-     */
-    private void setupAdvancedListeners() {
-        // Listener de rango temporal
-        timeRangeSelect.addValueChangeListener(event -> {
-            selectedTimeRange = event.getValue();
-            updateChartData();
-            showNotification("📅 Rango temporal actualizado: " + selectedTimeRange, NotificationVariant.LUMO_PRIMARY);
-        });
+    private VerticalLayout createUltraSection(String title) {
+        VerticalLayout section = new VerticalLayout();
+        section.setPadding(false);
+        section.setSpacing(true);
         
-        // Listener de tipo de gráfico
-        chartTypeSelect.addValueChangeListener(event -> {
-            selectedChartType = event.getValue();
-            realtimeChart.setChartType(selectedChartType);
-            showNotification("📊 Tipo de gráfico: " + selectedChartType, NotificationVariant.LUMO_SUCCESS);
-        });
+        section.getStyle()
+            .set("background", "rgba(255, 255, 255, 0.1)")
+            .set("border-radius", "16px")
+            .set("padding", "2rem")
+            .set("border", "1px solid rgba(255, 255, 255, 0.1)")
+            .set("backdrop-filter", "blur(20px)")
+            .set("box-shadow", "0 8px 32px rgba(0, 0, 0, 0.1)");
         
-        // Listener de filtro de procesos
-        processFilterSelect.addValueChangeListener(event -> {
-            selectedProcessFilter = event.getValue();
-            updateProcessData();
-            showNotification("🔍 Filtro aplicado: " + selectedProcessFilter, NotificationVariant.LUMO_CONTRAST);
-        });
-        
-        // Listeners de botones
-        exportButton.addClickListener(e -> handleExportAction());
-        predictionsButton.addClickListener(e -> handlePredictionsAction());
-        fullscreenButton.addClickListener(e -> handleFullscreenAction());
+        return section;
     }
     
-    /**
-     * 🚀 Inicialización del sistema en tiempo real
-     */
-    private void initializeRealtimeSystem() {
-        // Configurar WebSocket para tiempo real ultra eficiente
-        getElement().executeJs("""
-            // 🚀 Ultra Real-Time System Initialization
-            window.ultraDashboard = {
-                isActive: true,
-                lastUpdate: Date.now(),
-                connectionQuality: 'excellent',
-                
-                // WebSocket ultra optimizado
-                initWebSocket: function() {
-                    const socket = new WebSocket('ws://localhost:8080/ws-metrics');
-                    
-                    socket.onopen = function(event) {
-                        console.log('🚀 Ultra Dashboard WebSocket connected');
-                        window.ultraDashboard.updateConnectionStatus('connected');
-                    };
-                    
-                    socket.onmessage = function(event) {
-                        const data = JSON.parse(event.data);
-                        window.ultraDashboard.handleRealtimeData(data);
-                    };
-                    
-                    socket.onerror = function(error) {
-                        console.error('❌ WebSocket error:', error);
-                        window.ultraDashboard.updateConnectionStatus('error');
-                    };
-                },
-                
-                // Manejo de datos en tiempo real
-                handleRealtimeData: function(data) {
-                    this.lastUpdate = Date.now();
-                    // Actualizar métricas con animaciones suaves
-                    this.updateMetricsWithAnimations(data);
-                },
-                
-                // Actualizar estado de conexión
-                updateConnectionStatus: function(status) {
-                    const statusElement = document.querySelector('.realtime-status');
-                    if (statusElement) {
-                        statusElement.textContent = status === 'connected' ? 
-                            '🟢 Tiempo Real Activo' : '🔴 Desconectado';
-                    }
-                }
-            };
-            
-            // Inicializar sistema
-            window.ultraDashboard.initWebSocket();
-        """);
-    }
-    
-    /**
-     * 📊 Carga de datos iniciales
-     */
+    // Métodos de actualización
     private void loadInitialData() {
-        try {
-            updateMetricsData();
-            updateChartData();
+        updateMetrics();
+        updateChart();
+        updateProcessData();
+        updateAlertStatus();
+        
+        lastUpdateTime.setText("⏱️ " + LocalDateTime.now().format(timeFormatter));
+        
+        showNotification("🚀 Dashboard Ultra Pro cargado", NotificationVariant.LUMO_SUCCESS);
+    }
+    
+    private void setupRealtimeUpdates() {
+        UI.getCurrent().setPollInterval(5000);
+        UI.getCurrent().addPollListener(event -> {
+            updateMetrics();
+            updateChart();
             updateProcessData();
             updateAlertStatus();
             
             lastUpdateTime.setText("⏱️ " + LocalDateTime.now().format(timeFormatter));
+        });
+    }
+    
+    private void updateMetrics() {
+        try {
+            SystemMetric currentMetrics = monitorService.getCurrentMetrics();
             
-            showNotification("🚀 Dashboard Ultra Pro cargado correctamente", NotificationVariant.LUMO_SUCCESS);
+            cpuProgressBar.setValue(currentMetrics.getCpuUsage());
+            cpuProgressBar.setAlert(currentMetrics.isCpuAlert());
+            
+            memoryProgressBar.setValue(currentMetrics.getMemoryUsage());
+            memoryProgressBar.setAlert(currentMetrics.isMemoryAlert());
+            
+            diskProgressBar.setValue(currentMetrics.getDiskUsage());
+            diskProgressBar.setAlert(currentMetrics.isDiskAlert());
             
         } catch (Exception e) {
-            showNotification("❌ Error cargando datos: " + e.getMessage(), NotificationVariant.LUMO_ERROR);
+            showNotification("Error actualizando métricas: " + e.getMessage(), NotificationVariant.LUMO_ERROR);
         }
     }
     
-    /**
-     * 📈 Actualización de datos de métricas
-     */
-    private void updateMetricsData() {
-        SystemMetric currentMetrics = monitorService.getCurrentMetrics();
-        
-        cpuCard.updateValue(currentMetrics.getCpuUsage(), currentMetrics.isCpuAlert());
-        memoryCard.updateValue(currentMetrics.getMemoryUsage(), currentMetrics.isMemoryAlert());
-        diskCard.updateValue(currentMetrics.getDiskUsage(), currentMetrics.isDiskAlert());
-        
-        lastUpdateTime.setText("⏱️ " + LocalDateTime.now().format(timeFormatter));
+    private void updateChart() {
+        try {
+            List<SystemMetric> metrics = monitorService.getMetricsHistory(selectedTimeRange);
+            updateChartDisplay(metrics);
+        } catch (Exception e) {
+            showNotification("Error actualizando gráfico: " + e.getMessage(), NotificationVariant.LUMO_ERROR);
+        }
     }
     
-    /**
-     * 📊 Actualización de datos del gráfico
-     */
-    private void updateChartData() {
-        List<SystemMetric> metrics = monitorService.getMetricsHistory(selectedTimeRange);
-        realtimeChart.updateData(metrics);
+    private void updateChartDisplay(List<SystemMetric> metrics) {
+        // Find the metricsDisplay Div by traversing the realtimeChart's children
+        Div metricsDisplay = null;
+        for (Component child : realtimeChart.getChildren().toList()) {
+            if (child instanceof VerticalLayout layout) {
+                for (Component grandChild : layout.getChildren().toList()) {
+                    if (grandChild instanceof Div div && "metrics-display".equals(div.getId().orElse(null))) {
+                        metricsDisplay = div;
+                        break;
+                    }
+                }
+            }
+            if (metricsDisplay != null) break;
+        }
+
+        if (metricsDisplay != null) {
+            metricsDisplay.removeAll();
+
+            if (metrics != null && !metrics.isEmpty()) {
+                SystemMetric latest = metrics.get(metrics.size() - 1);
+
+                metricsDisplay.add(createChartMetricCard("🖥️ CPU", latest.getCpuUsage(), "#4F46E5"));
+                metricsDisplay.add(createChartMetricCard("💾 RAM", latest.getMemoryUsage(), "#10B981"));
+                metricsDisplay.add(createChartMetricCard("💽 Disco", latest.getDiskUsage(), "#F59E0B"));
+            } else {
+                metricsDisplay.add(new Span("📊 Cargando métricas..."));
+            }
+        }
     }
     
-    /**
-     * ⚙️ Actualización de datos de procesos
-     */
+    @SuppressWarnings("unused")
+    private Div createChartMetricCard(String label, double value, String color) {
+        Div card = new Div();
+        card.getStyle()
+            .set("background", "rgba(255,255,255,0.05)")
+            .set("border-radius", "12px")
+            .set("padding", "1.5rem")
+            .set("text-align", "center")
+            .set("border-left", "4px solid " + color);
+        
+        Span labelSpan = new Span(label);
+        labelSpan.getStyle()
+            .set("display", "block")
+            .set("font-weight", "600")
+            .set("color", color)
+            .set("margin-bottom", "0.5rem");
+        
+        Span valueSpan = new Span(String.format("%.1f%%", value));
+        valueSpan.getStyle()
+            .set("display", "block")
+            .set("font-size", "2rem")
+            .set("font-weight", "700")
+            .set("color", value > 80 ? "#EF4444" : color);
+        
+        card.add(labelSpan, valueSpan);
+        return card;
+    }
+    
     private void updateProcessData() {
-        List<ProcessInfo> processes = processInfoService.getHeavyProcesses(15, "CPU");
-        processGrid.updateProcesses(processes, selectedProcessFilter);
+        try {
+            List<ProcessInfo> processes = processInfoService.getHeavyProcesses(15, "CPU");
+            List<ProcessInfo> filteredProcesses = filterProcesses(processes);
+            processGrid.setItems(filteredProcesses);
+        } catch (Exception e) {
+            showNotification("Error actualizando procesos: " + e.getMessage(), NotificationVariant.LUMO_ERROR);
+        }
     }
     
-    /**
-     * 🚨 Actualización de estado de alertas
-     */
+    private List<ProcessInfo> filterProcesses(List<ProcessInfo> processes) {
+        if (processes == null) return List.of();
+        
+        return switch (selectedProcessFilter) {
+            case "HIGH_CPU" -> processes.stream().filter(p -> p.getCpuUsage() > 10.0).toList();
+            case "HIGH_MEMORY" -> processes.stream().filter(p -> p.getMemoryUsage() > 5.0).toList();
+            case "SYSTEM" -> processes.stream().filter(p -> "root".equals(p.getUsername()) || "system".equals(p.getUsername())).toList();
+            case "USER" -> processes.stream().filter(p -> !"root".equals(p.getUsername()) && !"system".equals(p.getUsername())).toList();
+            default -> processes;
+        };
+    }
+    
     private void updateAlertStatus() {
-        SystemMetric currentMetrics = monitorService.getCurrentMetrics();
-        AlertConfiguration config = alertConfigService.getCurrentConfig();
-        
-        Map<String, Double> alerts = new HashMap<>();
-        if (currentMetrics.getCpuUsage() > config.getCpuThreshold()) {
-            alerts.put("CPU", currentMetrics.getCpuUsage());
+        try {
+            SystemMetric currentMetrics = monitorService.getCurrentMetrics();
+            AlertConfiguration config = alertConfigService.getCurrentConfig();
+            
+            Map<String, Double> alerts = new HashMap<>();
+            Map<String, Double> thresholds = new HashMap<>();
+            
+            boolean cpuAlert = currentMetrics.getCpuUsage() > config.getCpuThreshold();
+            boolean memoryAlert = currentMetrics.getMemoryUsage() > config.getMemoryThreshold();
+            boolean diskAlert = currentMetrics.getDiskUsage() > config.getDiskThreshold();
+            
+            if (cpuAlert) {
+                alerts.put("CPU", currentMetrics.getCpuUsage());
+                thresholds.put("CPU", config.getCpuThreshold());
+            }
+            if (memoryAlert) {
+                alerts.put("Memoria", currentMetrics.getMemoryUsage());
+                thresholds.put("Memoria", config.getMemoryThreshold());
+            }
+            if (diskAlert) {
+                alerts.put("Disco", currentMetrics.getDiskUsage());
+                thresholds.put("Disco", config.getDiskThreshold());
+            }
+            
+            alertBanner.setAlerts(!alerts.isEmpty(), alerts, thresholds);
+            
+        } catch (Exception e) {
+            showNotification("Error evaluando alertas: " + e.getMessage(), NotificationVariant.LUMO_ERROR);
         }
-        if (currentMetrics.getMemoryUsage() > config.getMemoryThreshold()) {
-            alerts.put("Memoria", currentMetrics.getMemoryUsage());
-        }
-        if (currentMetrics.getDiskUsage() > config.getDiskThreshold()) {
-            alerts.put("Disco", currentMetrics.getDiskUsage());
-        }
-        
-        alertBanner.updateAlerts(alerts);
     }
     
-    /**
-     * 🎨 Configuración de animaciones de entrada
-     */
-    private void setupEntryAnimations() {
-        getElement().executeJs("""
-            // 🎨 Ultra Smooth Entry Animations
-            const elements = document.querySelectorAll('.ultra-dashboard > *');
-            elements.forEach((el, index) => {
-                el.style.opacity = '0';
-                el.style.transform = 'translateY(20px)';
-                
-                setTimeout(() => {
-                    el.style.transition = 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
-                    el.style.opacity = '1';
-                    el.style.transform = 'translateY(0)';
-                }, index * 100);
-            });
-        """);
+    // Métodos de utilidad
+    private Span createStatusBadge(ProcessInfo process) {
+        Span badge = new Span(process.getStatus());
+        
+        String color = switch (process.getStatus()) {
+            case "RUNNING" -> "#10B981";
+            case "SLEEPING" -> "#6B7280";
+            case "STOPPED" -> "#EF4444";
+            case "ZOMBIE" -> "#F59E0B";
+            default -> "#9CA3AF";
+        };
+        
+        badge.getStyle()
+            .set("background", color)
+            .set("color", "white")
+            .set("padding", "0.25rem 0.75rem")
+            .set("border-radius", "12px")
+            .set("font-size", "0.75rem")
+            .set("font-weight", "600")
+            .set("text-transform", "uppercase");
+        
+        return badge;
     }
     
-    // 🎯 Event Handlers Ultra Pro
+    private Span createMetricBar(double value, String color) {
+        Span container = new Span();
+        String alertColor = value > 80 ? "#EF4444" : color;
+        
+        container.getElement().setProperty("innerHTML", 
+            "<div style='display: flex; align-items: center; gap: 0.5rem;'>" +
+            "<span style='min-width: 50px; font-weight: 600; color: " + alertColor + "; font-family: monospace;'>" + 
+            String.format("%.1f%%", value) + "</span>" +
+            "<div style='width: 60px; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;'>" +
+            "<div style='width: " + Math.min(value, 100) + "%; height: 100%; background: " + alertColor + 
+            "; border-radius: 4px; transition: width 0.3s ease;'></div>" +
+            "</div>" +
+            "</div>");
+        return container;
+    }
     
-    private void handleExportAction() {
+    private String getProcessIcon(String processName) {
+        if (processName == null) return "⚙️";
+        String name = processName.toLowerCase();
+        
+        if (name.contains("java")) return "☕";
+        if (name.contains("chrome") || name.contains("firefox")) return "🌐";
+        if (name.contains("code") || name.contains("idea")) return "💻";
+        if (name.contains("mysql") || name.contains("postgres")) return "🗄️";
+        if (name.contains("node")) return "🟢";
+        if (name.contains("python")) return "🐍";
+        if (name.contains("docker")) return "🐳";
+        if (name.contains("nginx") || name.contains("apache")) return "🌐";
+        if (name.contains("systemd")) return "⚙️";
+        if (name.contains("kernel")) return "🔧";
+        return "⚙️";
+    }
+    
+    private void styleUltraSelect(Select<?> select) {
+        select.getStyle()
+            .set("background", "rgba(255, 255, 255, 0.1)")
+            .set("border-radius", "12px")
+            .set("border", "1px solid rgba(255, 255, 255, 0.1)")
+            .set("backdrop-filter", "blur(10px)")
+            .set("color", "#F9FAFB")
+            .set("--lumo-contrast-10pct", "rgba(79, 70, 229, 0.1)")
+            .set("--lumo-primary-color", "#4F46E5");
+    }
+    
+    private void styleUltraButton(Button button, String color) {
+        button.getStyle()
+            .set("background", "linear-gradient(135deg, " + color + ", " + color + "CC)")
+            .set("border-radius", "12px")
+            .set("padding", "0.75rem 1.5rem")
+            .set("font-weight", "600")
+            .set("color", "white")
+            .set("border", "none")
+            .set("box-shadow", "0 4px 14px rgba(0, 0, 0, 0.1)")
+            .set("transition", "all 0.3s ease");
+        
+        button.getElement().addEventListener("mouseenter", e -> 
+            button.getStyle()
+                .set("transform", "translateY(-2px)")
+                .set("box-shadow", "0 8px 25px rgba(0, 0, 0, 0.2)"));
+        
+        button.getElement().addEventListener("mouseleave", e -> 
+            button.getStyle()
+                .set("transform", "translateY(0)")
+                .set("box-shadow", "0 4px 14px rgba(0, 0, 0, 0.1)"));
+    }
+    
+    // Event handlers
+    private void showExportDialog() {
         showNotification("📊 Preparando exportación ultra avanzada...", NotificationVariant.LUMO_PRIMARY);
-        // TODO: Implementar exportación ultra pro en Paso 2
+        // TODO: Implementar en Paso 2
     }
     
-    private void handlePredictionsAction() {
-        showNotification("🔮 Generando predicciones con IA...", NotificationVariant.LUMO_SUCCESS);
-        // TODO: Implementar predicciones IA
-    }
-    
-    private void handleFullscreenAction() {
+    private void toggleFullscreen() {
         getElement().executeJs("""
             if (!document.fullscreenElement) {
                 document.documentElement.requestFullscreen();
@@ -635,35 +825,8 @@ public class DashboardView extends VerticalLayout {
                 document.exitFullscreen();
             }
         """);
+        showNotification("🖥️ Modo pantalla completa", NotificationVariant.LUMO_SUCCESS);
     }
-    
-    // 🎨 Styling Methods Ultra Pro
-    
-    private void styleAdvancedSelect(Select<?> select) {
-        select.addClassName("ultra-select");
-        select.getStyle()
-            .set("--lumo-contrast-10pct", "rgba(79, 70, 229, 0.1)")
-            .set("--lumo-primary-color", "#4F46E5")
-            .set("border-radius", "12px");
-    }
-    
-    private void styleUltraButton(Button button, String primaryColor, String hoverColor) {
-        button.addClassName("ultra-button");
-        button.getStyle()
-            .set("background", primaryColor)
-            .set("border-radius", "12px")
-            .set("padding", "0.75rem 1.5rem")
-            .set("font-weight", "600")
-            .set("transition", "all 0.3s ease")
-            .set("box-shadow", "0 4px 14px rgba(0, 0, 0, 0.1)");
-            
-        button.getElement().addEventListener("mouseenter", e -> 
-            button.getStyle().set("background", hoverColor));
-        button.getElement().addEventListener("mouseleave", e -> 
-            button.getStyle().set("background", primaryColor));
-    }
-    
-    // 📱 Utility Methods
     
     private void showNotification(String message, NotificationVariant variant) {
         Notification notification = Notification.show(message, 3000, Notification.Position.TOP_END);
@@ -673,16 +836,26 @@ public class DashboardView extends VerticalLayout {
     @Override
     protected void onAttach(AttachEvent attachEvent) {
         super.onAttach(attachEvent);
-        isRealTimeActive.set(true);
-        // Iniciar polling de respaldo si WebSocket falla
-        UI.getCurrent().setPollInterval(5000);
-    }
-    
-    @Override
-    protected void onDetach(DetachEvent detachEvent) {
-        super.onDetach(detachEvent);
-        isRealTimeActive.set(false);
-        // Detener polling
-        UI.getCurrent().setPollInterval(-1);
+        
+        // Configurar animaciones de entrada
+        getElement().executeJs("""
+            // Animación de entrada ultra suave
+            const elements = this.querySelectorAll('> *');
+            elements.forEach((el, index) => {
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(30px)';
+                
+                setTimeout(() => {
+                    el.style.transition = 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
+                    el.style.opacity = '1';
+                    el.style.transform = 'translateY(0)';
+                }, index * 100);
+            });
+            
+            // Mensaje de bienvenida
+            console.log('🚀 Ultra Dashboard cargado - Sin dependencias externas');
+        """);
+        
+        showNotification("✅ Dashboard conectado en tiempo real", NotificationVariant.LUMO_SUCCESS);
     }
 }
