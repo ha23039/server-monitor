@@ -44,12 +44,44 @@
     </dependencyManagement>
 
     <dependencies>
-            <!-- Añadida dependencia de OSHI aquí -->
-<dependency>
-    <groupId>com.github.oshi</groupId>
-    <artifactId>oshi-core</artifactId>
-    <version>6.4.10</version>
-</dependency>
+    <!-- Spring Boot Scheduler para CRON jobs -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+    <groupId>com.opencsv</groupId>
+        <artifactId>opencsv</artifactId>
+        <version>5.8</version>
+    </dependency>
+    <!-- Para exportación PDF -->
+    <dependency>
+        <groupId>com.itextpdf</groupId>
+        <artifactId>itext7-core</artifactId>
+        <version>7.2.5</version>
+        <type>pom</type>
+    </dependency>
+    <!-- WebSockets para tiempo real -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-websocket</artifactId>
+    </dependency>
+    <!-- Scheduler avanzado (opcional, mejora sobre @Scheduled) -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-quartz</artifactId>
+    </dependency>
+    <!-- JSON processing mejorado -->
+    <dependency>
+        <groupId>com.fasterxml.jackson.datatype</groupId>
+        <artifactId>jackson-datatype-jsr310</artifactId>
+    </dependency>
+    <!-- Añadida dependencia de OSHI aquí -->
+    <dependency>
+        <groupId>com.github.oshi</groupId>
+        <artifactId>oshi-core</artifactId>
+        <version>6.4.10</version>
+    </dependency>
         <dependency>
             <groupId>com.vaadin</groupId>
             <!-- Replace artifactId with vaadin-core to use only free components -->
