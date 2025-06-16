@@ -37,6 +37,12 @@ import com.vaadin.flow.component.textfield.TextField;
 public class ExportDialogView extends Dialog {
 
     @Autowired
+    public void setExportService(ExportService exportService) {
+        this.exportService = exportService;
+        System.out.println("✅ ExportService inyectado en ExportDialogView");
+    }
+
+    @Autowired
     private ExportService exportService;
     
     // Componentes principales

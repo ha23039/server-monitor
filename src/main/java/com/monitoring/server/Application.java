@@ -5,6 +5,7 @@ import com.vaadin.flow.theme.Theme;
 import com.vaadin.flow.theme.lumo.Lumo;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.ComponentScan;
 
 /**
  * The entry point of the Spring Boot application.
@@ -14,6 +15,11 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  *
  */
 @SpringBootApplication
+@ComponentScan(basePackages = {
+    "com.monitoring.server",
+    "com.monitoring.server.service.impl", 
+    "com.monitoring.server.views.components"
+})
 @Theme(value = "server-monitor", variant = Lumo.DARK)
 public class Application implements AppShellConfigurator {
 
