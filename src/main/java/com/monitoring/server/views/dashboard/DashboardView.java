@@ -1288,7 +1288,7 @@ public class DashboardView extends VerticalLayout {
                 .set("text-align", "center")
                 .set("display", "flex")
                 .set("align-items", "center")
-                .set("justify-content", "center")
+                .set("justify-content", "center");
             svgContainer.add(noDataSpan);
             return svgContainer;
         }
