@@ -48,11 +48,12 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
 /**
- * 🚀 DASHBOARD ULTRA PRO - VERSIÓN OPTIMIZADA Y COMPLETA
- * ✅ Sistema de exportación completamente integrado
+ * 🚀 DASHBOARD ULTRA PRO - VERSIÓN CORREGIDA CON EXPORTACIÓN FUNCIONAL
+ * ✅ Sistema de exportación completamente integrado y funcional
  * ✅ Gráficos SVG animados ultra responsivos
  * ✅ Código optimizado y sin dependencias externas
  * ✅ Compatible con Auth0 y control de roles
+ * ✅ ExportDialogView correctamente inicializado
  */
 @Route(value = "dashboard", layout = MainLayout.class)
 @PageTitle("🚀 Enterprise Dashboard - Métricas en Tiempo Real")
@@ -64,7 +65,7 @@ public class DashboardView extends VerticalLayout {
     private final ProcessInfoService processInfoService;
     private final AlertConfigService alertConfigService;
 
-    // Sistema de exportación integrado
+    // ✅ CORRECCIÓN: Inyección correcta del ExportDialogView
     private ExportDialogView exportDialogView;
     
     // Componentes principales
@@ -99,6 +100,17 @@ public class DashboardView extends VerticalLayout {
         this.alertConfigService = alertConfigService;
         
         initializeUltraProDashboard();
+    }
+    
+    // ✅ CORRECCIÓN: Método para inyectar ExportDialogView
+    @Autowired(required = false) // No obligatorio para evitar errores de arranque
+    public void setExportDialogView(ExportDialogView exportDialogView) {
+        this.exportDialogView = exportDialogView;
+        if (exportDialogView != null) {
+            System.out.println("✅ ExportDialogView inyectado correctamente");
+        } else {
+            System.out.println("⚠️ ExportDialogView no disponible - Modo básico");
+        }
     }
     
     private void initializeUltraProDashboard() {
@@ -149,7 +161,7 @@ public class DashboardView extends VerticalLayout {
         createUltraExportSystem();
     }
     
-    // === SISTEMA DE EXPORTACIÓN ULTRA COMPLETO ===
+    // === SISTEMA DE EXPORTACIÓN ULTRA COMPLETO CORREGIDO ===
     private void createUltraExportSystem() {
         exportMenuBar = new MenuBar();
         exportMenuBar.addClassName("ultra-export-menu");
@@ -201,34 +213,130 @@ public class DashboardView extends VerticalLayout {
     private void initializeExportSystem() {
         try {
             if (exportDialogView == null) {
-                showNotification("⚠️ Inicializando sistema de exportación...", NotificationVariant.LUMO_CONTRAST);
+                // ✅ CORRECCIÓN: Crear ExportDialogView manualmente si no está inyectado
+                createBasicExportDialog();
+                showNotification("⚠️ Sistema de exportación básico iniciado", NotificationVariant.LUMO_CONTRAST);
             } else {
                 showNotification("✅ Sistema de exportación ultra listo", NotificationVariant.LUMO_SUCCESS);
             }
         } catch (Exception e) {
             showNotification("❌ Error inicializando exportación: " + e.getMessage(), NotificationVariant.LUMO_ERROR);
+            e.printStackTrace();
         }
     }
     
-    // === MÉTODOS DE EXPORTACIÓN ULTRA COMPLETOS ===
+    // ✅ CORRECCIÓN: Crear dialog básico si no hay inyección
+    private void createBasicExportDialog() {
+        try {
+            // Crear una instancia básica para evitar nulls
+            exportDialogView = new ExportDialogView();
+            System.out.println("✅ ExportDialogView básico creado manualmente");
+        } catch (Exception e) {
+            System.err.println("❌ Error creando ExportDialogView básico: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    // === MÉTODOS DE EXPORTACIÓN ULTRA COMPLETOS CORREGIDOS ===
     
     private void openQuickExport() {
         try {
             if (exportDialogView != null) {
-                exportDialogView.open(); // Replace with the correct method, or implement openForMetrics() in ExportDialogView if needed
                 exportDialogView.open();
+                showNotification("📊 Abriendo exportación completa...", NotificationVariant.LUMO_PRIMARY);
             } else {
-                showNotification("⚠️ Sistema de exportación inicializándose...", NotificationVariant.LUMO_CONTRAST);
+                // ✅ CORRECCIÓN: Exportación básica vía REST
+                openBasicExportMenu();
             }
         } catch (Exception e) {
             showNotification("❌ Error: " + e.getMessage(), NotificationVariant.LUMO_ERROR);
+            e.printStackTrace();
         }
+    }
+    
+    // ✅ CORRECCIÓN: Método de exportación básica alternativo
+    private void openBasicExportMenu() {
+        showNotification("📊 Preparando exportación básica...", NotificationVariant.LUMO_PRIMARY);
+        
+        // Llamar directamente a los endpoints REST
+        String baseUrl =  "";
+        
+        UI.getCurrent().getPage().executeJs(
+            String.format("""
+                const exportOptions = [
+                    { name: 'CSV Metrics', url: '%s/api/export/csv/metrics' },
+                    { name: 'PDF Report', url: '%s/api/export/pdf/metrics' },
+                    { name: 'Excel Analysis', url: '%s/api/export/excel/metrics' }
+                ];
+                
+                const menu = document.createElement('div');
+                menu.style.cssText = `
+                    position: fixed;
+                    top: 50%%;
+                    left: 50%%;
+                    transform: translate(-50%%, -50%%);
+                    background: linear-gradient(135deg, #1e293b, #334155);
+                    border-radius: 16px;
+                    padding: 2rem;
+                    border: 1px solid rgba(255,255,255,0.1);
+                    backdrop-filter: blur(20px);
+                    box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+                    z-index: 10000;
+                    color: white;
+                    font-family: 'Inter', sans-serif;
+                `;
+                
+                menu.innerHTML = `
+                    <h3 style="margin: 0 0 1.5rem 0; color: #4F46E5; font-size: 1.5rem;">📊 Quick Export</h3>
+                    <div id="export-buttons"></div>
+                    <button id="close-export" style="
+                        margin-top: 1.5rem;
+                        padding: 0.5rem 1rem;
+                        background: #6B7280;
+                        border: none;
+                        border-radius: 8px;
+                        color: white;
+                        cursor: pointer;
+                        width: 100%%;
+                    ">Close</button>
+                `;
+                
+                const buttonContainer = menu.querySelector('#export-buttons');
+                exportOptions.forEach(option => {
+                    const btn = document.createElement('button');
+                    btn.style.cssText = `
+                        display: block;
+                        width: 100%%;
+                        padding: 1rem;
+                        margin-bottom: 0.5rem;
+                        background: linear-gradient(135deg, #4F46E5, #7C3AED);
+                        border: none;
+                        border-radius: 12px;
+                        color: white;
+                        cursor: pointer;
+                        font-weight: 600;
+                        transition: all 0.3s ease;
+                    `;
+                    btn.textContent = option.name;
+                    btn.onclick = () => {
+                        window.open(option.url, '_blank');
+                        document.body.removeChild(menu);
+                    };
+                    buttonContainer.appendChild(btn);
+                });
+                
+                menu.querySelector('#close-export').onclick = () => {
+                    document.body.removeChild(menu);
+                };
+                
+                document.body.appendChild(menu);
+                """, baseUrl, baseUrl, baseUrl)
+        );
     }
     
     private void quickExportCSV() {
         try {
             if (exportDialogView != null) {
-                // Configurar exportación CSV directa
                 exportDialogView.open();
                 showNotification("📊 Exportando métricas a CSV...", NotificationVariant.LUMO_PRIMARY);
                 
@@ -241,10 +349,19 @@ public class DashboardView extends VerticalLayout {
                         window.dispatchEvent(exportEvent);
                     }, 500);
                 """);
+            } else {
+                // ✅ CORRECCIÓN: Descarga directa vía REST
+                downloadDirectCSV();
             }
         } catch (Exception e) {
             showNotification("❌ Error en exportación CSV: " + e.getMessage(), NotificationVariant.LUMO_ERROR);
         }
+    }
+    
+    // ✅ CORRECCIÓN: Métodos de descarga directa
+    private void downloadDirectCSV() {
+        showNotification("📊 Descargando CSV...", NotificationVariant.LUMO_PRIMARY);
+        UI.getCurrent().getPage().open("/api/export/csv/metrics", "_blank");
     }
     
     private void quickExportPDF() {
@@ -252,7 +369,6 @@ public class DashboardView extends VerticalLayout {
             if (exportDialogView != null) {
                 exportDialogView.open();
                 
-                // Trigger para PDF
                 UI.getCurrent().getPage().executeJs("""
                     setTimeout(() => {
                         const exportEvent = new CustomEvent('quickExport', {
@@ -261,6 +377,10 @@ public class DashboardView extends VerticalLayout {
                         window.dispatchEvent(exportEvent);
                     }, 500);
                 """);
+            } else {
+                // ✅ CORRECCIÓN: Descarga directa de PDF
+                showNotification("📊 Descargando PDF...", NotificationVariant.LUMO_PRIMARY);
+                UI.getCurrent().getPage().open("/api/export/pdf/complete", "_blank");
             }
         } catch (Exception e) {
             showNotification("❌ Error en exportación PDF: " + e.getMessage(), NotificationVariant.LUMO_ERROR);
@@ -273,7 +393,6 @@ public class DashboardView extends VerticalLayout {
                 exportDialogView.open();
                 showNotification("📈 Generando análisis Excel...", NotificationVariant.LUMO_PRIMARY);
                 
-                // Trigger para Excel
                 UI.getCurrent().getPage().executeJs("""
                     setTimeout(() => {
                         const exportEvent = new CustomEvent('quickExport', {
@@ -282,6 +401,10 @@ public class DashboardView extends VerticalLayout {
                         window.dispatchEvent(exportEvent);
                     }, 500);
                 """);
+            } else {
+                // ✅ CORRECCIÓN: Descarga directa de Excel
+                showNotification("📈 Descargando Excel...", NotificationVariant.LUMO_PRIMARY);
+                UI.getCurrent().getPage().open("/api/export/excel/analysis", "_blank");
             }
         } catch (Exception e) {
             showNotification("❌ Error en exportación Excel: " + e.getMessage(), NotificationVariant.LUMO_ERROR);
@@ -292,6 +415,9 @@ public class DashboardView extends VerticalLayout {
         try {
             if (exportDialogView != null) {
                 exportDialogView.open();
+            } else {
+                showNotification("⚙️ Descargando reporte de procesos...", NotificationVariant.LUMO_PRIMARY);
+                UI.getCurrent().getPage().open("/api/export/csv/processes", "_blank");
             }
         } catch (Exception e) {
             showNotification("❌ Error en exportación de procesos: " + e.getMessage(), NotificationVariant.LUMO_ERROR);
@@ -321,8 +447,6 @@ public class DashboardView extends VerticalLayout {
     
     private void setupScheduledExport() {
         showNotification("🔄 Configurando exportación programada...", NotificationVariant.LUMO_PRIMARY);
-        
-        // Mostrar dialog para configurar exportación programada
         Notification.show("🔄 Próximamente: Exportación programada automática", 4000, Notification.Position.MIDDLE);
     }
     
@@ -331,6 +455,9 @@ public class DashboardView extends VerticalLayout {
             if (exportDialogView != null) {
                 exportDialogView.open();
                 showNotification("🎨 Abriendo exportación personalizada...", NotificationVariant.LUMO_PRIMARY);
+            } else {
+                // ✅ CORRECCIÓN: Menú avanzado alternativo
+                openBasicExportMenu();
             }
         } catch (Exception e) {
             showNotification("❌ Error en exportación avanzada: " + e.getMessage(), NotificationVariant.LUMO_ERROR);
@@ -359,7 +486,6 @@ public class DashboardView extends VerticalLayout {
         MetricProgressBar card = new MetricProgressBar(title, 0, threshold);
         card.addClassName("metric-card");
         
-        // Estilos ultra glass responsivos
         card.getStyle()
             .set("background", "linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05))")
             .set("border-radius", "20px")
@@ -376,7 +502,7 @@ public class DashboardView extends VerticalLayout {
             .set("position", "relative")
             .set("overflow", "hidden");
         
-        // JavaScript para responsive y efectos
+        // ✅ CORRECCIÓN: JavaScript sin selector problemático
         card.getElement().executeJs(String.format("""
             const card = this;
             
@@ -446,7 +572,6 @@ public class DashboardView extends VerticalLayout {
             .set("align-items", "center")
             .set("min-height", "300px");
         
-        // Hacer el gráfico ultra responsivo
         chart.getElement().executeJs("""
             const chart = this;
             
@@ -482,7 +607,6 @@ public class DashboardView extends VerticalLayout {
             .set("color", "#F9FAFB")
             .set("text-align", "center");
         
-        // Título responsivo
         chartTitle.getElement().executeJs("""
             const title = this;
             
@@ -532,7 +656,6 @@ public class DashboardView extends VerticalLayout {
             .set("width", "100%")
             .set("overflow-x", "auto");
         
-        // Grid ultra responsivo
         grid.getElement().executeJs("""
             const grid = this;
             
@@ -725,7 +848,6 @@ public class DashboardView extends VerticalLayout {
     private void buildDashboardStructure() {
         VerticalLayout mainContainer = createMainContainer();
         
-        // Componentes principales del dashboard
         Component header = createUltraHeader();
         Component metricsPanel = createResponsiveMetricsPanel();
         Component chartSection = createChartSection();
@@ -766,7 +888,6 @@ public class DashboardView extends VerticalLayout {
             .set("backdrop-filter", "blur(20px)")
             .set("box-shadow", "0 8px 32px rgba(0, 0, 0, 0.1)");
         
-        // Título ultra con icono
         HorizontalLayout titleSection = new HorizontalLayout();
         Icon dashIcon = VaadinIcon.DASHBOARD.create();
         dashIcon.setColor("#4F46E5");
@@ -783,7 +904,6 @@ public class DashboardView extends VerticalLayout {
         titleSection.add(dashIcon, title);
         titleSection.setAlignItems(FlexComponent.Alignment.CENTER);
         
-        // Panel de estado avanzado
         HorizontalLayout statusPanel = new HorizontalLayout();
         statusPanel.add(realtimeStatus, performanceIndicator);
         statusPanel.setAlignItems(FlexComponent.Alignment.CENTER);
@@ -809,7 +929,6 @@ public class DashboardView extends VerticalLayout {
         
         headerLayout.add(panelTitle, lastUpdateTime);
         
-        // Grid responsivo mejorado para métricas
         Div metricsGrid = new Div();
         metricsGrid.addClassName("metrics-responsive-grid");
         metricsGrid.setWidthFull();
@@ -821,7 +940,6 @@ public class DashboardView extends VerticalLayout {
             .set("width", "100%")
             .set("align-items", "stretch");
         
-        // CSS responsivo avanzado
         metricsGrid.getElement().executeJs("""
             const style = document.createElement('style');
             style.textContent = `
@@ -919,7 +1037,6 @@ public class DashboardView extends VerticalLayout {
             .set("color", "#9CA3AF")
             .set("font-size", "0.875rem");
         
-        // Sección de exportación integrada
         HorizontalLayout exportSection = new HorizontalLayout();
         exportSection.setAlignItems(FlexComponent.Alignment.CENTER);
         exportSection.setSpacing(true);
@@ -1056,7 +1173,6 @@ public class DashboardView extends VerticalLayout {
         
         metricsDisplay.add(cpuChart, memoryChart, diskChart);
         
-        // Animación de entrada ultra suave
         metricsDisplay.getElement().executeJs("""
             this.style.opacity = '0';
             this.style.transform = 'translateY(20px)';
@@ -1137,7 +1253,6 @@ public class DashboardView extends VerticalLayout {
         
         chartContainer.add(chartLayout);
         
-        // Efectos hover ultra
         chartContainer.getElement().addEventListener("mouseenter", e -> {
             chartContainer.getStyle()
                 .set("transform", "translateY(-4px)")
@@ -1174,7 +1289,7 @@ public class DashboardView extends VerticalLayout {
                 .set("display", "flex")
                 .set("align-items", "center")
                 .set("justify-content", "center")
-                .set("height", "100%");
+               /* .set("height", "100%"); */
             svgContainer.add(noDataSpan);
             return svgContainer;
         }
@@ -1504,7 +1619,7 @@ public class DashboardView extends VerticalLayout {
                 showNotification("📊 Abriendo exportación avanzada...", NotificationVariant.LUMO_PRIMARY);
             } else {
                 showNotification("⚠️ Sistema de exportación inicializándose...", NotificationVariant.LUMO_CONTRAST);
-                UI.getCurrent().getPage().reload();
+                openBasicExportMenu();
             }
         } catch (Exception e) {
             showNotification("❌ Error abriendo exportación: " + e.getMessage(), NotificationVariant.LUMO_ERROR);
@@ -1535,7 +1650,6 @@ public class DashboardView extends VerticalLayout {
     // === MÉTODOS ADICIONALES DE UTILIDAD ===
     
     private void initializeKeyboardShortcuts() {
-        // Agregar atajos de teclado para funcionalidades avanzadas
         getElement().executeJs("""
             document.addEventListener('keydown', function(e) {
                 // Ctrl + E para exportar
@@ -1562,12 +1676,10 @@ public class DashboardView extends VerticalLayout {
             
             // Listeners para los eventos de teclado
             window.addEventListener('keyboardExport', () => {
-                // Trigger export dialog
                 console.log('🚀 Export triggered by keyboard');
             });
             
             window.addEventListener('keyboardFullscreen', () => {
-                // Trigger fullscreen
                 if (!document.fullscreenElement) {
                     document.documentElement.requestFullscreen();
                 } else {
@@ -1576,14 +1688,12 @@ public class DashboardView extends VerticalLayout {
             });
             
             window.addEventListener('keyboardRefresh', () => {
-                // Trigger manual refresh
                 console.log('🔄 Manual refresh triggered');
             });
         """);
     }
     
     private void setupAdvancedFeatures() {
-        // Configurar características avanzadas del dashboard
         getElement().executeJs("""
             // Sistema de notificaciones push
             if ('Notification' in window && Notification.permission === 'granted') {
@@ -1618,16 +1728,16 @@ public class DashboardView extends VerticalLayout {
         """);
     }
     
-    // === EVENTO ONATTACH CON INICIALIZACIÓN COMPLETA ===
+    // === EVENTO ONATTACH CON INICIALIZACIÓN COMPLETA CORREGIDO ===
     
     @Override
     protected void onAttach(AttachEvent attachEvent) {
         super.onAttach(attachEvent);
         
-        // Configurar animaciones de entrada ultra
+        // ✅ CORRECCIÓN: JavaScript sin selector problemático
         getElement().executeJs("""
-            // Animación de entrada híbrida ultra suave
-            const elements = this.querySelectorAll('> *');
+            // Animación de entrada híbrida ultra suave CORREGIDA
+            const elements = document.querySelectorAll('.ultra-dashboard > *');
             elements.forEach((el, index) => {
                 el.style.opacity = '0';
                 el.style.transform = 'translateY(30px)';
