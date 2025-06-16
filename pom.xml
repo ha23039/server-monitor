@@ -61,6 +61,30 @@
         <version>7.2.5</version>
         <type>pom</type>
     </dependency>
+    <!-- Para generar gráficos en PDF -->
+    <dependency>
+        <groupId>org.jfree</groupId>
+        <artifactId>jfreechart</artifactId>
+        <version>1.5.3</version>
+    </dependency>
+    <!-- Para Excel () -->
+    <dependency>
+        <groupId>org.apache.poi</groupId>
+        <artifactId>poi-ooxml</artifactId>
+        <version>5.2.3</version>
+    </dependency>
+    <!-- Para compresión de archivos -->
+    <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-compress</artifactId>
+        <version>1.23.0</version>
+    </dependency>
+    <!-- Para procesamiento de fechas avanzado -->
+    <dependency>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-lang3</artifactId>
+        <version>3.12.0</version>
+    </dependency>
     <!-- WebSockets para tiempo real -->
     <dependency>
         <groupId>org.springframework.boot</groupId>

@@ -1,4 +1,3 @@
-// SystemMetricRepository.java
 package com.monitoring.server.data.repository;
 
 import java.time.LocalDateTime;
@@ -16,7 +15,7 @@ import com.monitoring.server.data.entity.SystemMetric;
 public interface SystemMetricRepository extends JpaRepository<SystemMetric, Long> {
     
     /**
-     * Encuentra métricas en un rango de fechas específico
+     * 📅 Encuentra métricas en un rango de fechas específico (MÉTODO PRINCIPAL)
      */
     List<SystemMetric> findByTimestampBetweenOrderByTimestampDesc(
         LocalDateTime startTime, LocalDateTime endTime);
@@ -56,4 +55,28 @@ public interface SystemMetricRepository extends JpaRepository<SystemMetric, Long
      */
     @Query("SELECT AVG(sm.cpuUsage), AVG(sm.memoryUsage), AVG(sm.diskUsage) FROM SystemMetric sm WHERE sm.timestamp BETWEEN :start AND :end")
     Object[] getAverageMetricsInPeriod(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+
+    /**
+     * Método alternativo con query personalizada (opcional - para casos específicos)
+     */
+    @Query("SELECT sm FROM SystemMetric sm WHERE sm.timestamp BETWEEN :start AND :end ORDER BY sm.timestamp DESC")
+    List<SystemMetric> findMetricsByDateRange(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+    
+    /**
+     * Encuentra métricas por CPU alto
+     */
+    @Query("SELECT sm FROM SystemMetric sm WHERE sm.cpuUsage > :threshold ORDER BY sm.timestamp DESC")
+    List<SystemMetric> findByCpuUsageGreaterThan(@Param("threshold") double threshold);
+    
+    /**
+     * Encuentra métricas por memoria alta
+     */
+    @Query("SELECT sm FROM SystemMetric sm WHERE sm.memoryUsage > :threshold ORDER BY sm.timestamp DESC")
+    List<SystemMetric> findByMemoryUsageGreaterThan(@Param("threshold") double threshold);
+    
+    /**
+     * Encuentra métricas por disco alto
+     */
+    @Query("SELECT sm FROM SystemMetric sm WHERE sm.diskUsage > :threshold ORDER BY sm.timestamp DESC")
+    List<SystemMetric> findByDiskUsageGreaterThan(@Param("threshold") double threshold);
 }

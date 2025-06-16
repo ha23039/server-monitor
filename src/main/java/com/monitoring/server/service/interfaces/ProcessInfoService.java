@@ -19,6 +19,22 @@ public interface ProcessInfoService {
     List<ProcessInfo> getHeavyProcesses(int limit, String sortBy);
     
     /**
+     * 🔥 NUEVO - Obtener procesos con alto uso de CPU
+     * @param limit Número máximo de procesos a retornar
+     * @param minCpu Porcentaje mínimo de CPU requerido
+     * @return Lista de procesos que exceden el umbral de CPU
+     */
+    List<ProcessInfo> getHighCpuProcesses(int limit, double minCpu);
+
+    /**
+     * 💾 NUEVO - Obtener procesos con alto uso de memoria
+     * @param limit Número máximo de procesos a retornar
+     * @param minMemory Cantidad mínima de memoria en MB requerida
+     * @return Lista de procesos que exceden el umbral de memoria
+     */
+    List<ProcessInfo> getHighMemoryProcesses(int limit, double minMemory);
+    
+    /**
      * Obtiene el historial de procesos para un período determinado
      * @param startTime Fecha y hora de inicio del período
      * @param endTime Fecha y hora de fin del período
