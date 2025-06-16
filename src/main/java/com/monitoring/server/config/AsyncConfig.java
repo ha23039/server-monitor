@@ -10,7 +10,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 /**
  * Configuración para tareas asíncronas y programadas
- * Optimiza el rendimiento de los CRON jobs de recolección de métricas
+ * Optimiza el rendimiento de los CRON jobs de recolección de métricas y exportación
  */
 @Configuration
 @EnableAsync
@@ -49,11 +49,35 @@ public class AsyncConfig {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         
         executor.setCorePoolSize(2);
-        executor.setMaxPoolSize(4);
-        executor.setQueueCapacity(10);
-        executor.setThreadNamePrefix("Export-");
+        executor.setMaxPoolSize(5);         // Aumentado para mejor rendimiento
+        executor.setQueueCapacity(100);     // Aumentado para manejar más tareas
+        executor.setKeepAliveSeconds(60);
+        executor.setThreadNamePrefix("ServerMonitor-Export-");
         executor.setWaitForTasksToCompleteOnShutdown(true);
         executor.setAwaitTerminationSeconds(30);
+        
+        // Política de rechazo mejorada
+        executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
+        
+        executor.initialize();
+        return executor;
+    }
+    
+    /**
+     * Executor para procesamiento de datos pesados (opcional)
+     * Solo agregar si realmente lo necesitas
+     */
+    @Bean(name = "dataProcessingExecutor")
+    public Executor dataProcessingExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        
+        executor.setCorePoolSize(1);
+        executor.setMaxPoolSize(3);
+        executor.setQueueCapacity(50);
+        executor.setKeepAliveSeconds(30);
+        
+        executor.setThreadNamePrefix("ServerMonitor-DataProcessing-");
+        executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
         
         executor.initialize();
         return executor;
