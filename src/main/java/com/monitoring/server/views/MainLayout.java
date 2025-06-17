@@ -167,7 +167,7 @@ public class MainLayout extends AppLayout {
             .set("border-top", "1px solid var(--lumo-contrast-10pct)")
             .set("margin-top", "auto");
 
-        Span footerText = new Span("Server Monitor v2.0");
+        Span footerText = new Span("Server Monitor v3.0");
         footerText.addClassNames(LumoUtility.FontSize.XSMALL, LumoUtility.TextColor.SECONDARY);
 
         Span roleIndicator = new Span("Rol: " + securityHelper.getCurrentUserRoleDisplay());

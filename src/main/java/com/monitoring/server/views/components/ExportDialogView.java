@@ -7,6 +7,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import com.monitoring.server.dto.export.ExportRequest;
+import com.monitoring.server.dto.export.ExportResult;
+import com.monitoring.server.service.interfaces.ExportService;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -28,13 +31,17 @@ import com.vaadin.flow.component.radiobutton.RadioGroupVariant;
 import com.vaadin.flow.component.textfield.TextField;
 
 /**
- * 🎨 Dialog simplificado para exportaciones - SIN dependencias circulares
- * Utiliza llamadas directas a endpoints en lugar de servicios inyectados
+ * 🎨 Dialog corregido para exportaciones - CON autenticación adecuada
+ * Usa ExportService inyectado en lugar de llamadas directas HTTP
  */
 @Component
 public class ExportDialogView extends Dialog {
 
     private static final Logger logger = LoggerFactory.getLogger(ExportDialogView.class);
+    
+    // ✅ CORREGIDO: Inyección simple sin duplicados
+    @Autowired
+    private ExportService exportService;
     
     // Componentes principales
     private RadioButtonGroup<String> typeSelector;
@@ -72,7 +79,6 @@ public class ExportDialogView extends Dialog {
         setDraggable(true);
         setResizable(false);
         
-        // Agregar clase CSS para estilización
         addClassName("export-dialog");
     }
     
@@ -323,7 +329,7 @@ public class ExportDialogView extends Dialog {
         open();
     }
     
-    // === MÉTODOS DE EXPORTACIÓN SIMPLIFICADOS ===
+    // === ✅ MÉTODOS DE EXPORTACIÓN CORREGIDOS - USA SERVICIO INYECTADO ===
     
     private void startExport() {
         if (isExporting) {
@@ -331,44 +337,42 @@ public class ExportDialogView extends Dialog {
         }
         
         try {
+            // Verificar que el servicio esté disponible
+            if (exportService == null) {
+                logger.error("❌ ExportService no está inyectado");
+                Notification.show("❌ Export service not available", 3000, Notification.Position.TOP_END)
+                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
+                return;
+            }
+            
             setExportingState(true);
             showProgressSection(true);
             
-            // Construir URL del endpoint según configuración
-            String exportUrl = buildExportUrl();
+            // Construir request de exportación
+            ExportRequest request = buildExportRequest();
             
-            logger.info("🚀 Iniciando descarga desde: {}", exportUrl);
+            logger.info("🚀 Iniciando exportación: {}", request);
             
-            // Usar JavaScript para abrir la descarga
-            UI.getCurrent().getPage().executeJs("""
-                console.log('🚀 Abriendo descarga:', $0);
-                
-                // Crear un enlace temporal para la descarga
-                const link = document.createElement('a');
-                link.href = $0;
-                link.target = '_blank';
-                link.style.display = 'none';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                
-                console.log('✅ Descarga iniciada exitosamente');
-                """, exportUrl).then(result -> {
-                
-                // Simular un pequeño delay para dar feedback al usuario
-                UI.getCurrent().access(() -> {
-                    setExportingState(false);
-                    showProgressSection(false);
+            // ✅ CORREGIDO: Usar servicio inyectado con autenticación de sesión
+            switch (typeSelector.getValue()) {
+                case "System Metrics" -> exportService.exportSystemMetrics(request)
+                    .thenAccept(result -> UI.getCurrent().access(() -> handleExportResult(result)));
                     
-                    Notification.show(
-                        "✅ Export started! Check your downloads folder.",
-                        3000, 
-                        Notification.Position.TOP_END
-                    ).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                case "Process Data" -> exportService.exportProcessData(request)
+                    .thenAccept(result -> UI.getCurrent().access(() -> handleExportResult(result)));
                     
-                    close();
-                });
-            });
+                case "Complete Report" -> exportService.exportCompleteReport(request)
+                    .thenAccept(result -> UI.getCurrent().access(() -> handleExportResult(result)));
+                    
+                case "Custom Export" -> exportService.exportCustomData(request)
+                    .thenAccept(result -> UI.getCurrent().access(() -> handleExportResult(result)));
+                    
+                default -> {
+                    logger.warn("⚠️ Tipo de exportación no reconocido: {}", typeSelector.getValue());
+                    exportService.exportSystemMetrics(request)
+                        .thenAccept(result -> UI.getCurrent().access(() -> handleExportResult(result)));
+                }
+            }
             
         } catch (Exception e) {
             logger.error("❌ Error iniciando exportación", e);
@@ -376,76 +380,43 @@ public class ExportDialogView extends Dialog {
         }
     }
     
-    private String buildExportUrl() {
-        String baseUrl = "/api/export";
-        String type = typeSelector.getValue();
-        String format = formatSelector.getValue();
-        String period = mapPeriodToString(periodSelector.getValue());
+    private ExportRequest buildExportRequest() {
+        ExportRequest request = new ExportRequest();
         
-        // Construir URL según el tipo seleccionado
-        String endpoint = switch (type) {
-            case "System Metrics" -> {
-                if ("CSV".equals(format)) {
-                    yield baseUrl + "/csv/metrics?period=" + period;
-                } else {
-                    yield baseUrl + "/metrics?format=" + format + "&period=" + period;
-                }
-            }
-            case "Process Data" -> {
-                String filter = processFilterSelector.getValue();
-                if ("CSV".equals(format)) {
-                    yield baseUrl + "/csv/processes?filter=" + filter;
-                } else {
-                    yield baseUrl + "/processes?format=" + format + "&filter=" + filter;
-                }
-            }
-            case "Complete Report" -> {
-                if ("PDF".equals(format)) {
-                    yield baseUrl + "/pdf/complete-report?period=" + period;
-                } else if ("EXCEL".equals(format)) {
-                    yield baseUrl + "/excel/analysis?period=" + period;
-                } else {
-                    yield baseUrl + "/complete-report?format=" + format + "&period=" + period;
-                }
-            }
-            default -> baseUrl + "/metrics?format=CSV&period=24H";
+        // Tipo y formato
+        request.setType(mapTypeToEnum(typeSelector.getValue()));
+        request.setFormat(ExportRequest.ExportFormat.valueOf(formatSelector.getValue()));
+        
+        // Fechas
+        if ("Custom Range".equals(periodSelector.getValue())) {
+            request.setStartDate(startDatePicker.getValue());
+            request.setEndDate(endDatePicker.getValue());
+        } else {
+            request.setPeriod(mapPeriodToString(periodSelector.getValue()));
+        }
+        
+        // Opciones
+        request.setIncludeCharts(includeChartsCheckbox.getValue());
+        request.setIncludeExecutiveSummary(includeExecutiveSummaryCheckbox.getValue());
+        request.setIncludeDetailedAnalysis(includeDetailedAnalysisCheckbox.getValue());
+        request.setReportTitle(reportTitleField.getValue());
+        
+        // Filtro de procesos
+        if (processFilterSelector.isVisible()) {
+            request.setProcessFilter(processFilterSelector.getValue());
+        }
+        
+        return request;
+    }
+    
+    private ExportRequest.ExportType mapTypeToEnum(String type) {
+        return switch (type) {
+            case "System Metrics" -> ExportRequest.ExportType.METRICS;
+            case "Process Data" -> ExportRequest.ExportType.PROCESSES;
+            case "Complete Report" -> ExportRequest.ExportType.COMPLETE_REPORT;
+            case "Custom Export" -> ExportRequest.ExportType.CUSTOM;
+            default -> ExportRequest.ExportType.METRICS;
         };
-        
-        // Agregar parámetros adicionales
-        StringBuilder urlBuilder = new StringBuilder(endpoint);
-        
-        // Agregar título del reporte si está especificado
-        if (reportTitleField.getValue() != null && !reportTitleField.getValue().trim().isEmpty()) {
-            urlBuilder.append(endpoint.contains("?") ? "&" : "?")
-                     .append("reportTitle=").append(reportTitleField.getValue().trim());
-        }
-        
-        // Agregar parámetros de fechas personalizadas si están seleccionadas
-        if ("Custom Range".equals(periodSelector.getValue()) && 
-            startDatePicker.getValue() != null && endDatePicker.getValue() != null) {
-            
-            urlBuilder.append(endpoint.contains("?") ? "&" : "?")
-                     .append("startDate=").append(startDatePicker.getValue().toString())
-                     .append("&endDate=").append(endDatePicker.getValue().toString());
-        }
-        
-        // Agregar parámetros de opciones avanzadas
-        if (includeChartsCheckbox.getValue()) {
-            urlBuilder.append(urlBuilder.toString().contains("?") ? "&" : "?")
-                     .append("includeCharts=true");
-        }
-        
-        if (includeExecutiveSummaryCheckbox.getValue()) {
-            urlBuilder.append(urlBuilder.toString().contains("?") ? "&" : "?")
-                     .append("includeExecutiveSummary=true");
-        }
-        
-        if (includeDetailedAnalysisCheckbox.getValue()) {
-            urlBuilder.append(urlBuilder.toString().contains("?") ? "&" : "?")
-                     .append("includeDetailedAnalysis=true");
-        }
-        
-        return urlBuilder.toString();
     }
     
     private String mapPeriodToString(String period) {
@@ -457,6 +428,75 @@ public class ExportDialogView extends Dialog {
             case "Last 30 Days" -> "30D";
             default -> "24H";
         };
+    }
+    
+    private void handleExportResult(ExportResult result) {
+        setExportingState(false);
+        showProgressSection(false);
+        
+        if (result.isSuccess()) {
+            logger.info("✅ Export exitoso: {}", result.getFilename());
+            
+            // ✅ CORREGIDO: Crear blob en el navegador y descargar
+            triggerDownload(result);
+            
+            Notification.show(
+                "✅ Export completed: " + result.getFilename() + " (" + result.getFormattedSize() + ")",
+                3000, 
+                Notification.Position.TOP_END
+            ).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+            
+            close();
+        } else {
+            logger.error("❌ Error en exportación: {}", result.getErrorMessage());
+            Notification.show(
+                "❌ Export failed: " + result.getErrorMessage(),
+                5000, 
+                Notification.Position.TOP_END
+            ).addThemeVariants(NotificationVariant.LUMO_ERROR);
+        }
+    }
+    
+    private void triggerDownload(ExportResult result) {
+        logger.info("🔽 Iniciando descarga: {} - {}", result.getFilename(), result.getFormattedSize());
+        
+        // ✅ CORREGIDO: Usar JavaScript para crear blob y descargar
+        UI.getCurrent().getPage().executeJs("""
+            console.log('🔽 Iniciando descarga:', $1);
+            try {
+                // Convertir datos a Uint8Array
+                const byteArray = new Uint8Array($0);
+                
+                // Crear blob con tipo MIME correcto
+                const blob = new Blob([byteArray], { type: $2 });
+                
+                // Crear URL temporal
+                const url = URL.createObjectURL(blob);
+                
+                // Crear enlace de descarga
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = $1;
+                link.style.display = 'none';
+                
+                // Ejecutar descarga
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // Limpiar URL temporal
+                URL.revokeObjectURL(url);
+                
+                console.log('✅ Descarga completada exitosamente');
+            } catch (error) {
+                console.error('❌ Error en descarga:', error);
+                alert('Error downloading file: ' + error.message);
+            }
+            """, 
+            result.getData(), 
+            result.getFilename(), 
+            result.getMimeType()
+        );
     }
     
     private void handleExportError(Throwable error) {
@@ -479,7 +519,7 @@ public class ExportDialogView extends Dialog {
         
         if (exporting) {
             exportButton.setIcon(VaadinIcon.CLOCK.create());
-            progressLabel.setText("Preparing download...");
+            progressLabel.setText("Processing export...");
         } else {
             exportButton.setIcon(VaadinIcon.DOWNLOAD.create());
         }

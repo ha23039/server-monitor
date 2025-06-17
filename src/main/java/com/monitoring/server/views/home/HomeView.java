@@ -301,7 +301,8 @@ public class HomeView extends VerticalLayout {
             "Base de Datos (Neon/PostgreSQL): Conectada y accesible",
             "Despliegue Aplicación (Render): En línea y funcionando",
             "Control de Roles y Permisos: Activo y validado",
-            "Funcionalidades Parcial 2: Completadas y operativas"
+            "Funcionalidades Parcial 2: Completadas y operativas",
+            "Funcionalidades Parcial 3: Dashboard y exportación de datos",
         };
 
         for (String itemText : statusItemsData) {
