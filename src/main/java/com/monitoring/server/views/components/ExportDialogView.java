@@ -332,7 +332,7 @@ public class ExportDialogView extends Dialog {
         open();
     }
 
-    // === ✅ MÉTODO startExport FINAL SIN TIMER PROBLEMÁTICO ===
+// === ✅ MÉTODO startExport SÚPER SIMPLIFICADO - SIN EVENTOS COMPLEJOS ===
     
     private void startExport() {
         if (isExporting) {
@@ -348,7 +348,7 @@ public class ExportDialogView extends Dialog {
             
             logger.info("🚀 Iniciando descarga desde: {}", exportUrl);
             
-            // ✅ SOLUCIÓN SIMPLE: Usar JavaScript directo sin polling complicado
+            // ✅ SOLUCIÓN SÚPER SIMPLE: JavaScript maneja descarga, Java cierra inmediatamente
             UI.getCurrent().getPage().executeJs("""
                 console.log('🚀 Abriendo descarga:', $0);
                 
@@ -398,34 +398,32 @@ public class ExportDialogView extends Dialog {
                 });
                 """, exportUrl);
             
-            // ✅ SOLUCIÓN SIMPLE: Timeout directo sin Timer
-            UI.getCurrent().getPage().executeJs("""
-                setTimeout(() => {
-                    console.log('🕐 Finalizando modal de exportación...');
-                }, 2000);
-                """).then(result -> {
-                
-                // Resetear estado después de 2 segundos
-                UI.getCurrent().access(() -> {
-                    setExportingState(false);
-                    showProgressSection(false);
-                    
-                    Notification.show(
-                        "✅ Export completed! Check your downloads folder.",
-                        3000, 
-                        Notification.Position.TOP_END
-                    ).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-                    
-                    close(); // ✅ CERRAR EL MODAL
-                });
-            });
+            // ✅ SOLUCIÓN SÚPER SIMPLE: Cerrar después de 2 segundos sin complicaciones
+            new Thread(() -> {
+                try {
+                    Thread.sleep(2000); // 2 segundos
+                    UI.getCurrent().access(() -> {
+                        setExportingState(false);
+                        showProgressSection(false);
+                        
+                        Notification.show(
+                            "✅ Export started! Check your downloads folder.",
+                            3000, 
+                            Notification.Position.TOP_END
+                        ).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                        
+                        close(); // ✅ CERRAR EL MODAL
+                    });
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }).start();
             
         } catch (Exception e) {
             logger.error("❌ Error iniciando exportación", e);
             handleExportError(e);
         }
     }
-      
 
     /**
      * Builds the export URL based on the current dialog selections.
