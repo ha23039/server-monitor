@@ -332,7 +332,7 @@ public class ExportDialogView extends Dialog {
         open();
     }
 
-    // === ✅ MÉTODO startExport CORREGIDO - USA URLs DIRECTAS ===
+    // === ✅ MÉTODO startExport FINAL SIN TIMER PROBLEMÁTICO ===
     
     private void startExport() {
         if (isExporting) {
@@ -348,7 +348,7 @@ public class ExportDialogView extends Dialog {
             
             logger.info("🚀 Iniciando descarga desde: {}", exportUrl);
             
-            // Usar JavaScript para abrir la descarga con fetch
+            // ✅ SOLUCIÓN SIMPLE: Usar JavaScript directo sin polling complicado
             UI.getCurrent().getPage().executeJs("""
                 console.log('🚀 Abriendo descarga:', $0);
                 
@@ -367,9 +367,17 @@ public class ExportDialogView extends Dialog {
                 .then(blob => {
                     console.log('✅ Blob recibido:', blob.size, 'bytes');
                     
-                    // Crear nombre de archivo dinámico
+                    // ✅ CORREGIDO: Detectar extensión desde URL
                     const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-                    const filename = 'export_' + timestamp + '.csv';
+                    let extension = '.csv'; // Default
+                    
+                    if ($0.includes('/pdf/')) extension = '.pdf';
+                    else if ($0.includes('/excel/')) extension = '.xlsx';
+                    else if ($0.includes('format=JSON')) extension = '.json';
+                    else if ($0.includes('format=PDF')) extension = '.pdf';
+                    else if ($0.includes('format=EXCEL')) extension = '.xlsx';
+                    
+                    const filename = 'export_' + timestamp + extension;
                     
                     // Crear descarga
                     const url = URL.createObjectURL(blob);
@@ -390,74 +398,83 @@ public class ExportDialogView extends Dialog {
                 });
                 """, exportUrl);
             
-            // Dar feedback inmediato al usuario
-            new java.util.Timer().schedule(
-                new java.util.TimerTask() {
-                    @Override
-                    public void run() {
-                        UI.getCurrent().access(() -> {
-                            setExportingState(false);
-                            showProgressSection(false);
-
-                            Notification.show(
-                                "✅ Export started! Check your downloads folder.",
-                                3000, 
-                                Notification.Position.TOP_END
-                            ).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-
-                            close();
-                        });
-                    }
-                }, 
-                1000 // 1 segundo de delay para feedback
-            );
+            // ✅ SOLUCIÓN SIMPLE: Timeout directo sin Timer
+            UI.getCurrent().getPage().executeJs("""
+                setTimeout(() => {
+                    console.log('🕐 Finalizando modal de exportación...');
+                }, 2000);
+                """).then(result -> {
+                
+                // Resetear estado después de 2 segundos
+                UI.getCurrent().access(() -> {
+                    setExportingState(false);
+                    showProgressSection(false);
+                    
+                    Notification.show(
+                        "✅ Export completed! Check your downloads folder.",
+                        3000, 
+                        Notification.Position.TOP_END
+                    ).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                    
+                    close(); // ✅ CERRAR EL MODAL
+                });
+            });
             
         } catch (Exception e) {
             logger.error("❌ Error iniciando exportación", e);
             handleExportError(e);
         }
     }
+      
 
     /**
      * Builds the export URL based on the current dialog selections.
      */
-// ✅ MÉTODO PARA CONSTRUIR URLS CORREGIDO
-   // ✅ MÉTODO PARA CONSTRUIR URLS (AGREGAR ESTE MÉTODO)
+
+    // ✅ MÉTODO PARA CONSTRUIR URLS CORREGIDO - LÓGICA COMPLETA
     private String buildExportUrl() {
         String baseUrl = "/vaadin-export";
         String type = typeSelector.getValue();
         String format = formatSelector.getValue();
         String period = mapPeriodToString(periodSelector.getValue());
         
-        // Construir URL según el tipo seleccionado
-        String endpoint = switch (type) {
+        logger.info("🔗 Construyendo URL - Type: {}, Format: {}, Period: {}", type, format, period);
+        
+        // ✅ CORREGIDO: Lógica clara y sin errores
+        String endpoint = "";
+        
+        switch (type) {
             case "System Metrics" -> {
-                if ("CSV".equals(format)) {
-                    yield baseUrl + "/csv/metrics?period=" + period;
-                } else if ("EXCEL".equals(format)) {
-                    yield baseUrl + "/excel/analysis?period=" + period;
-                } else if ("JSON".equals(format)) {
-                    yield baseUrl + "/csv/metrics?period=" + period; // Fallback por ahora
-                } else {
-                    yield baseUrl + "/csv/metrics?period=" + period;
+                switch (format) {
+                    case "CSV" -> endpoint = baseUrl + "/csv/metrics?period=" + period;
+                    case "EXCEL" -> endpoint = baseUrl + "/excel/analysis?period=" + period;
+                    case "PDF" -> endpoint = baseUrl + "/pdf/complete-report?period=" + period; // ✅ PDF para métricas
+                    case "JSON" -> endpoint = baseUrl + "/csv/metrics?period=" + period; // Fallback
+                    default -> endpoint = baseUrl + "/csv/metrics?period=" + period;
                 }
             }
             case "Process Data" -> {
                 String filter = processFilterSelector.getValue();
-                yield baseUrl + "/csv/processes?filter=" + filter;
-            }
-            case "Complete Report" -> {
-                if ("PDF".equals(format)) {
-                    yield baseUrl + "/pdf/complete-report?period=" + period;
-                } else if ("EXCEL".equals(format)) {
-                    yield baseUrl + "/excel/analysis?period=" + period;
-                } else {
-                    yield baseUrl + "/csv/metrics?period=" + period;
+                switch (format) {
+                    case "CSV" -> endpoint = baseUrl + "/csv/processes?filter=" + filter;
+                    case "EXCEL" -> endpoint = baseUrl + "/csv/processes?filter=" + filter; // No hay Excel específico para procesos
+                    case "PDF" -> endpoint = baseUrl + "/pdf/complete-report?period=" + period + "&processFilter=" + filter;
+                    case "JSON" -> endpoint = baseUrl + "/csv/processes?filter=" + filter; // Fallback
+                    default -> endpoint = baseUrl + "/csv/processes?filter=" + filter;
                 }
             }
-            case "Custom Export" -> baseUrl + "/csv/metrics?period=" + period;
-            default -> baseUrl + "/csv/metrics?period=" + period;
-        };
+            case "Complete Report" -> {
+                switch (format) {
+                    case "CSV" -> endpoint = baseUrl + "/csv/metrics?period=" + period;
+                    case "EXCEL" -> endpoint = baseUrl + "/excel/analysis?period=" + period;
+                    case "PDF" -> endpoint = baseUrl + "/pdf/complete-report?period=" + period;
+                    case "JSON" -> endpoint = baseUrl + "/csv/metrics?period=" + period; // Fallback
+                    default -> endpoint = baseUrl + "/pdf/complete-report?period=" + period;
+                }
+            }
+            case "Custom Export" -> endpoint = baseUrl + "/csv/metrics?period=" + period;
+            default -> endpoint = baseUrl + "/csv/metrics?period=" + period;
+        }
         
         // Agregar parámetros adicionales
         StringBuilder urlBuilder = new StringBuilder(endpoint);
@@ -465,7 +482,7 @@ public class ExportDialogView extends Dialog {
         // Agregar título del reporte si está especificado
         if (reportTitleField.getValue() != null && !reportTitleField.getValue().trim().isEmpty()) {
             urlBuilder.append(endpoint.contains("?") ? "&" : "?")
-                     .append("reportTitle=").append(java.net.URLEncoder.encode(reportTitleField.getValue().trim(), java.nio.charset.StandardCharsets.UTF_8));
+                     .append("reportTitle=").append(encodeURIComponent(reportTitleField.getValue().trim()));
         }
         
         // Agregar parámetros de fechas personalizadas si están seleccionadas
@@ -477,24 +494,29 @@ public class ExportDialogView extends Dialog {
                      .append("&endDate=").append(endDatePicker.getValue().toString());
         }
         
-        // Agregar parámetros de opciones avanzadas para PDF
-        if (includeChartsCheckbox.getValue() && endpoint.contains("pdf")) {
-            urlBuilder.append(urlBuilder.toString().contains("?") ? "&" : "?")
-                     .append("includeCharts=true");
+        // Agregar parámetros de opciones avanzadas SOLO para PDF
+        if (format.equals("PDF")) {
+            if (includeChartsCheckbox.getValue()) {
+                urlBuilder.append(urlBuilder.toString().contains("?") ? "&" : "?")
+                         .append("includeCharts=true");
+            }
+            
+            if (includeExecutiveSummaryCheckbox.getValue()) {
+                urlBuilder.append(urlBuilder.toString().contains("?") ? "&" : "?")
+                         .append("includeExecutiveSummary=true");
+            }
+            
+            if (includeDetailedAnalysisCheckbox.getValue()) {
+                urlBuilder.append(urlBuilder.toString().contains("?") ? "&" : "?")
+                         .append("includeDetailedAnalysis=true");
+            }
         }
         
-        if (includeExecutiveSummaryCheckbox.getValue() && endpoint.contains("pdf")) {
-            urlBuilder.append(urlBuilder.toString().contains("?") ? "&" : "?")
-                     .append("includeExecutiveSummary=true");
-        }
-        
-        if (includeDetailedAnalysisCheckbox.getValue() && endpoint.contains("pdf")) {
-            urlBuilder.append(urlBuilder.toString().contains("?") ? "&" : "?")
-                     .append("includeDetailedAnalysis=true");
-        }
-        
-        return urlBuilder.toString();
+        String finalUrl = urlBuilder.toString();
+        logger.info("🔗 URL final construida: {}", finalUrl);
+        return finalUrl;
     }
+
     /**
      * Encodes a string for use in a URL query parameter.
      */
