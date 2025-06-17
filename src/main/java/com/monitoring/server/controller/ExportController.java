@@ -2,7 +2,6 @@ package com.monitoring.server.controller;
 
 import java.time.LocalDateTime;
 import java.util.concurrent.CompletableFuture;
-import java.time.format.DateTimeFormatter;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -403,52 +402,56 @@ public CompletableFuture<ResponseEntity<byte[]>> exportMetricsCSV(
 }
 
 /**
- * 🧪 Endpoint de prueba simple para PDF
+ * 📊 PDF Complete report endpoint específico
  */
-@GetMapping("/test/pdf")
-@PreAuthorize("hasAnyAuthority('ROLE_admin', 'ROLE_operator', 'ROLE_viewer')")
-public ResponseEntity<byte[]> testPDF() {
-    logger.info("🧪 Test PDF endpoint llamado");
+@GetMapping("/pdf/complete-report")
+@PreAuthorize("hasAnyAuthority('ROLE_admin', 'ROLE_operator')")
+public CompletableFuture<ResponseEntity<byte[]>> exportCompleteReportPDF(
+        @RequestParam(required = false, defaultValue = "24H") String period,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
+        @RequestParam(defaultValue = "true") boolean includeCharts,
+        @RequestParam(defaultValue = "true") boolean includeExecutiveSummary,
+        @RequestParam(defaultValue = "true") boolean includeDetailedAnalysis,
+        @RequestParam(required = false) String reportTitle) {
+    
+    logger.info("📊 Exportación PDF reporte completo solicitada");
     
     try {
-        String simpleHtml = """
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset="UTF-8">
-                <title>Test Report</title>
-                <style>
-                    body { font-family: Arial; padding: 20px; background: white; }
-                    h1 { color: #4F46E5; text-align: center; }
-                    .success { background: #d4edda; padding: 20px; border-radius: 8px; margin: 20px 0; }
-                </style>
-            </head>
-            <body>
-                <h1>🎉 PDF Export Test Successful!</h1>
-                <div class="success">
-                    <h3>✅ System Status: Working</h3>
-                    <p><strong>Generated:</strong> %s</p>
-                    <p><strong>Service:</strong> ExportController</p>
-                    <p><strong>Status:</strong> All systems operational</p>
-                </div>
-                <p>If you can see this page, the PDF export system is working correctly!</p>
-                <p><strong>Next step:</strong> Use browser's Print → Save as PDF to download</p>
-            </body>
-            </html>
-            """.formatted(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+        ExportRequest request = ExportRequest.completeReport()
+            .format(ExportRequest.ExportFormat.PDF)
+            .period(period)
+            .dateRange(startDate, endDate);
         
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.TEXT_HTML);
-        headers.add("Content-Disposition", "inline; filename=test-report.html");
+        if (includeCharts) {
+            request.withCharts();
+        }
         
-        return ResponseEntity.ok()
-            .headers(headers)
-            .body(simpleHtml.getBytes("UTF-8"));
-            
+        if (includeExecutiveSummary) {
+            request.withExecutiveSummary();
+        }
+        
+        request.setIncludeDetailedAnalysis(includeDetailedAnalysis);
+        
+        if (reportTitle != null && !reportTitle.trim().isEmpty()) {
+            request.title(reportTitle);
+        }
+        
+        return exportService.exportCompleteReport(request)
+            .thenApply(result -> {
+                if (result.isSuccess()) {
+                    return createDownloadResponse(result);
+                } else {
+                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(result.getErrorMessage().getBytes());
+                }
+            });
     } catch (Exception e) {
-        logger.error("❌ Error en test PDF", e);
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-            .body(("Test failed: " + e.getMessage()).getBytes());
+        logger.error("❌ Error en PDF export", e);
+        return CompletableFuture.completedFuture(
+            ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(("PDF export failed: " + e.getMessage()).getBytes())
+        );
     }
 }
 

@@ -3,6 +3,8 @@ package com.monitoring.server.views.components;
 import java.time.LocalDateTime;
 import java.util.concurrent.CompletableFuture;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -36,14 +38,15 @@ import com.vaadin.flow.component.textfield.TextField;
 @Component
 public class ExportDialogView extends Dialog {
 
-    @Autowired
-    public void setExportService(ExportService exportService) {
-        this.exportService = exportService;
-        System.out.println("✅ ExportService inyectado en ExportDialogView");
-    }
+    private static final Logger logger = LoggerFactory.getLogger(ExportDialogView.class);
+@Autowired
+public void setExportService(ExportService exportService) {
+    this.exportService = exportService;
+    System.out.println("✅ ExportService inyectado en ExportDialogView");
+}
 
-    @Autowired
-    private ExportService exportService;
+@Autowired
+private ExportService exportService;
     
     // Componentes principales
     private RadioButtonGroup<String> typeSelector;
@@ -421,29 +424,35 @@ public class ExportDialogView extends Dialog {
     }
     
     private void handleExportResult(ExportResult result) {
-        setExportingState(false);
-        showProgressSection(false);
+    setExportingState(false);
+    showProgressSection(false);
+    
+    if (result.isSuccess()) {
+        logger.info("✅ Export exitoso: {}", result.getFilename());
         
-        if (result.isSuccess()) {
-            // Crear descarga
-            triggerDownload(result);
-            
-            Notification.show(
-                String.format("✅ Export completed! File: %s (%s)", 
-                    result.getFilename(), result.getFormattedSize()),
-                3000, 
-                Notification.Position.TOP_END
-            ).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-            
-            close();
-        } else {
-            Notification.show(
-                "❌ Export failed: " + result.getErrorMessage(),
-                5000, 
-                Notification.Position.TOP_END
-            ).addThemeVariants(NotificationVariant.LUMO_ERROR);
-        }
+        // ✅ SOLUCIÓN SIMPLE: Abrir directamente el endpoint
+        String directUrl = "/api/export/pdf/complete?format=PDF&period=24H";
+        
+        UI.getCurrent().getPage().executeJs("""
+            console.log('🚀 Abriendo descarga directa...');
+            window.open($0, '_blank');
+        """, directUrl);
+        
+        Notification.show(
+            "✅ Opening download in new tab: " + result.getFilename(),
+            3000, 
+            Notification.Position.TOP_END
+        ).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+        
+        close();
+    } else {
+        Notification.show(
+            "❌ Export failed: " + result.getErrorMessage(),
+            5000, 
+            Notification.Position.TOP_END
+        ).addThemeVariants(NotificationVariant.LUMO_ERROR);
     }
+}
     
     private void handleExportError(Throwable error) {
         setExportingState(false);
@@ -456,20 +465,56 @@ public class ExportDialogView extends Dialog {
         ).addThemeVariants(NotificationVariant.LUMO_ERROR);
     }
     
-    private void triggerDownload(ExportResult result) {
-        // Crear StreamResource para la descarga
+private void triggerDownload(ExportResult result) {
+    logger.info("🔽 Iniciando descarga: {} - {}", result.getFilename(), result.getFormattedSize());
+    
+    try {
+        // Crear URL de descarga con timestamp para evitar cache
+        String downloadUrl = "/api/export/download/" + result.getExportId() + "?t=" + System.currentTimeMillis();
+        
+        // Abrir en nueva ventana para descarga
         getElement().executeJs("""
-            const blob = new Blob([new Uint8Array($0)], { type: $1 });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = $2;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            console.log('🔽 Iniciando descarga:', $0);
+            const link = document.createElement('a');
+            link.href = $0;
+            link.download = $1;
+            link.target = '_blank';
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // También intentar abrir en nueva pestaña como fallback
+            setTimeout(() => {
+                window.open($0, '_blank');
+            }, 500);
+            """, downloadUrl, result.getFilename());
+            
+    } catch (Exception e) {
+        logger.error("❌ Error en descarga", e);
+        
+        // Fallback: usar el método básico de blob
+        getElement().executeJs("""
+            try {
+                const byteArray = new Uint8Array($0);
+                const blob = new Blob([byteArray], { type: $1 });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = $2;
+                a.style.display = 'none';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                console.log('✅ Descarga fallback completada');
+            } catch (error) {
+                console.error('❌ Error en descarga fallback:', error);
+                alert('Error en descarga: ' + error.message);
+            }
         """, result.getData(), result.getMimeType(), result.getFilename());
     }
+}
     
     private void setExportingState(boolean exporting) {
         this.isExporting = exporting;
