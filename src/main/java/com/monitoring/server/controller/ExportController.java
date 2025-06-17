@@ -404,22 +404,38 @@ public CompletableFuture<ResponseEntity<byte[]>> exportMetricsCSV(
 /**
  * 📊 PDF Complete report endpoint específico
  */
-@GetMapping("/pdf/complete")
+@GetMapping("/pdf/complete-report")
 @PreAuthorize("hasAnyAuthority('ROLE_admin', 'ROLE_operator')")
-public CompletableFuture<ResponseEntity<byte[]>> exportCompletePDF(
+public CompletableFuture<ResponseEntity<byte[]>> exportCompleteReportPDF(
         @RequestParam(required = false, defaultValue = "24H") String period,
         @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
-        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
+        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
+        @RequestParam(defaultValue = "true") boolean includeCharts,
+        @RequestParam(defaultValue = "true") boolean includeExecutiveSummary,
+        @RequestParam(defaultValue = "true") boolean includeDetailedAnalysis,
+        @RequestParam(required = false) String reportTitle) {
     
-    logger.info("📄 Exportación PDF completa solicitada");
+    logger.info("📊 Exportación PDF reporte completo solicitada");
     
     try {
         ExportRequest request = ExportRequest.completeReport()
             .format(ExportRequest.ExportFormat.PDF)
             .period(period)
-            .dateRange(startDate, endDate)
-            .withCharts()
-            .withExecutiveSummary();
+            .dateRange(startDate, endDate);
+        
+        if (includeCharts) {
+            request.withCharts();
+        }
+        
+        if (includeExecutiveSummary) {
+            request.withExecutiveSummary();
+        }
+        
+        request.setIncludeDetailedAnalysis(includeDetailedAnalysis);
+        
+        if (reportTitle != null && !reportTitle.trim().isEmpty()) {
+            request.title(reportTitle);
+        }
         
         return exportService.exportCompleteReport(request)
             .thenApply(result -> {
