@@ -1,6 +1,8 @@
 package com.monitoring.server.views.components;
 
 import java.time.LocalDateTime;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -328,8 +330,8 @@ public class ExportDialogView extends Dialog {
         includeExecutiveSummaryCheckbox.setValue(true);
         open();
     }
-    
-    // === ✅ MÉTODOS DE EXPORTACIÓN CORREGIDOS - USA SERVICIO INYECTADO ===
+
+    // === ✅ MÉTODO startExport CORREGIDO - USA URLs DIRECTAS ===
     
     private void startExport() {
         if (isExporting) {
@@ -337,46 +339,169 @@ public class ExportDialogView extends Dialog {
         }
         
         try {
-            // Verificar que el servicio esté disponible
-            if (exportService == null) {
-                logger.error("❌ ExportService no está inyectado");
-                Notification.show("❌ Export service not available", 3000, Notification.Position.TOP_END)
-                    .addThemeVariants(NotificationVariant.LUMO_ERROR);
-                return;
-            }
-            
             setExportingState(true);
             showProgressSection(true);
             
-            // Construir request de exportación
-            ExportRequest request = buildExportRequest();
+            // Construir URL del endpoint según configuración
+            String exportUrl = buildExportUrl();
             
-            logger.info("🚀 Iniciando exportación: {}", request);
+            logger.info("🚀 Iniciando descarga desde: {}", exportUrl);
             
-            // ✅ CORREGIDO: Usar servicio inyectado con autenticación de sesión
-            switch (typeSelector.getValue()) {
-                case "System Metrics" -> exportService.exportSystemMetrics(request)
-                    .thenAccept(result -> UI.getCurrent().access(() -> handleExportResult(result)));
+            // Usar JavaScript para abrir la descarga con fetch
+            UI.getCurrent().getPage().executeJs("""
+                console.log('🚀 Abriendo descarga:', $0);
+                
+                fetch($0, {
+                    method: 'GET',
+                    credentials: 'include'
+                })
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    if (response.ok) {
+                        return response.blob();
+                    } else {
+                        throw new Error('Export failed: ' + response.status);
+                    }
+                })
+                .then(blob => {
+                    console.log('✅ Blob recibido:', blob.size, 'bytes');
                     
-                case "Process Data" -> exportService.exportProcessData(request)
-                    .thenAccept(result -> UI.getCurrent().access(() -> handleExportResult(result)));
+                    // Crear nombre de archivo dinámico
+                    const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+                    const filename = 'export_' + timestamp + '.csv';
                     
-                case "Complete Report" -> exportService.exportCompleteReport(request)
-                    .thenAccept(result -> UI.getCurrent().access(() -> handleExportResult(result)));
+                    // Crear descarga
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    a.style.display = 'none';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
                     
-                case "Custom Export" -> exportService.exportCustomData(request)
-                    .thenAccept(result -> UI.getCurrent().access(() -> handleExportResult(result)));
-                    
-                default -> {
-                    logger.warn("⚠️ Tipo de exportación no reconocido: {}", typeSelector.getValue());
-                    exportService.exportSystemMetrics(request)
-                        .thenAccept(result -> UI.getCurrent().access(() -> handleExportResult(result)));
-                }
-            }
+                    console.log('✅ Descarga completada:', filename);
+                })
+                .catch(error => {
+                    console.error('❌ Error en descarga:', error);
+                    alert('Error downloading file: ' + error.message);
+                });
+                """, exportUrl);
+            
+            // Dar feedback inmediato al usuario
+            new java.util.Timer().schedule(
+                new java.util.TimerTask() {
+                    @Override
+                    public void run() {
+                        UI.getCurrent().access(() -> {
+                            setExportingState(false);
+                            showProgressSection(false);
+
+                            Notification.show(
+                                "✅ Export started! Check your downloads folder.",
+                                3000, 
+                                Notification.Position.TOP_END
+                            ).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+
+                            close();
+                        });
+                    }
+                }, 
+                1000 // 1 segundo de delay para feedback
+            );
             
         } catch (Exception e) {
             logger.error("❌ Error iniciando exportación", e);
             handleExportError(e);
+        }
+    }
+
+    /**
+     * Builds the export URL based on the current dialog selections.
+     */
+// ✅ MÉTODO PARA CONSTRUIR URLS CORREGIDO
+   // ✅ MÉTODO PARA CONSTRUIR URLS (AGREGAR ESTE MÉTODO)
+    private String buildExportUrl() {
+        String baseUrl = "/vaadin-export";
+        String type = typeSelector.getValue();
+        String format = formatSelector.getValue();
+        String period = mapPeriodToString(periodSelector.getValue());
+        
+        // Construir URL según el tipo seleccionado
+        String endpoint = switch (type) {
+            case "System Metrics" -> {
+                if ("CSV".equals(format)) {
+                    yield baseUrl + "/csv/metrics?period=" + period;
+                } else if ("EXCEL".equals(format)) {
+                    yield baseUrl + "/excel/analysis?period=" + period;
+                } else if ("JSON".equals(format)) {
+                    yield baseUrl + "/csv/metrics?period=" + period; // Fallback por ahora
+                } else {
+                    yield baseUrl + "/csv/metrics?period=" + period;
+                }
+            }
+            case "Process Data" -> {
+                String filter = processFilterSelector.getValue();
+                yield baseUrl + "/csv/processes?filter=" + filter;
+            }
+            case "Complete Report" -> {
+                if ("PDF".equals(format)) {
+                    yield baseUrl + "/pdf/complete-report?period=" + period;
+                } else if ("EXCEL".equals(format)) {
+                    yield baseUrl + "/excel/analysis?period=" + period;
+                } else {
+                    yield baseUrl + "/csv/metrics?period=" + period;
+                }
+            }
+            case "Custom Export" -> baseUrl + "/csv/metrics?period=" + period;
+            default -> baseUrl + "/csv/metrics?period=" + period;
+        };
+        
+        // Agregar parámetros adicionales
+        StringBuilder urlBuilder = new StringBuilder(endpoint);
+        
+        // Agregar título del reporte si está especificado
+        if (reportTitleField.getValue() != null && !reportTitleField.getValue().trim().isEmpty()) {
+            urlBuilder.append(endpoint.contains("?") ? "&" : "?")
+                     .append("reportTitle=").append(java.net.URLEncoder.encode(reportTitleField.getValue().trim(), java.nio.charset.StandardCharsets.UTF_8));
+        }
+        
+        // Agregar parámetros de fechas personalizadas si están seleccionadas
+        if ("Custom Range".equals(periodSelector.getValue()) && 
+            startDatePicker.getValue() != null && endDatePicker.getValue() != null) {
+            
+            urlBuilder.append(endpoint.contains("?") ? "&" : "?")
+                     .append("startDate=").append(startDatePicker.getValue().toString())
+                     .append("&endDate=").append(endDatePicker.getValue().toString());
+        }
+        
+        // Agregar parámetros de opciones avanzadas para PDF
+        if (includeChartsCheckbox.getValue() && endpoint.contains("pdf")) {
+            urlBuilder.append(urlBuilder.toString().contains("?") ? "&" : "?")
+                     .append("includeCharts=true");
+        }
+        
+        if (includeExecutiveSummaryCheckbox.getValue() && endpoint.contains("pdf")) {
+            urlBuilder.append(urlBuilder.toString().contains("?") ? "&" : "?")
+                     .append("includeExecutiveSummary=true");
+        }
+        
+        if (includeDetailedAnalysisCheckbox.getValue() && endpoint.contains("pdf")) {
+            urlBuilder.append(urlBuilder.toString().contains("?") ? "&" : "?")
+                     .append("includeDetailedAnalysis=true");
+        }
+        
+        return urlBuilder.toString();
+    }
+    /**
+     * Encodes a string for use in a URL query parameter.
+     */
+    private String encodeURIComponent(String value) {
+        try {
+            return java.net.URLEncoder.encode(value, java.nio.charset.StandardCharsets.UTF_8.toString());
+        } catch (Exception e) {
+            return value;
         }
     }
     
