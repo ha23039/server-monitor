@@ -332,7 +332,7 @@ public class ExportDialogView extends Dialog {
         open();
     }
 
-// === ✅ MÉTODO startExport SÚPER SIMPLIFICADO - SIN EVENTOS COMPLEJOS ===
+ // === ✅ MÉTODO startExport ULTRA SIMPLE - SIN THREAD PROBLEMÁTICO ===
     
     private void startExport() {
         if (isExporting) {
@@ -348,7 +348,7 @@ public class ExportDialogView extends Dialog {
             
             logger.info("🚀 Iniciando descarga desde: {}", exportUrl);
             
-            // ✅ SOLUCIÓN SÚPER SIMPLE: JavaScript maneja descarga, Java cierra inmediatamente
+            // ✅ SOLUCIÓN ULTRA SIMPLE: JavaScript maneja TODO
             UI.getCurrent().getPage().executeJs("""
                 console.log('🚀 Abriendo descarga:', $0);
                 
@@ -391,33 +391,51 @@ public class ExportDialogView extends Dialog {
                     URL.revokeObjectURL(url);
                     
                     console.log('✅ Descarga completada:', filename);
+                    
+                    // ✅ CRÍTICO: Cerrar el modal después de 1 segundo usando JavaScript
+                    setTimeout(() => {
+                        // Buscar y cerrar el dialog
+                        const dialog = document.querySelector('vaadin-dialog-overlay');
+                        if (dialog) {
+                            const closeButton = dialog.querySelector('vaadin-button[theme*="tertiary"]');
+                            if (closeButton) {
+                                closeButton.click();
+                                console.log('✅ Modal cerrado automáticamente');
+                            }
+                        }
+                        
+                        // Mostrar notificación
+                        const notification = document.createElement('vaadin-notification');
+                        notification.setAttribute('position', 'top-end');
+                        notification.setAttribute('theme', 'success');
+                        notification.setAttribute('duration', '3000');
+                        notification.textContent = '✅ Export completed! File: ' + filename;
+                        document.body.appendChild(notification);
+                        notification.open = true;
+                        
+                        setTimeout(() => {
+                            if (notification.parentNode) {
+                                notification.parentNode.removeChild(notification);
+                            }
+                        }, 3500);
+                    }, 1000);
                 })
                 .catch(error => {
                     console.error('❌ Error en descarga:', error);
                     alert('Error downloading file: ' + error.message);
+                    
+                    // Cerrar modal también en caso de error
+                    setTimeout(() => {
+                        const dialog = document.querySelector('vaadin-dialog-overlay');
+                        if (dialog) {
+                            const closeButton = dialog.querySelector('vaadin-button[theme*="tertiary"]');
+                            if (closeButton) {
+                                closeButton.click();
+                            }
+                        }
+                    }, 500);
                 });
                 """, exportUrl);
-            
-            // ✅ SOLUCIÓN SÚPER SIMPLE: Cerrar después de 2 segundos sin complicaciones
-            new Thread(() -> {
-                try {
-                    Thread.sleep(2000); // 2 segundos
-                    UI.getCurrent().access(() -> {
-                        setExportingState(false);
-                        showProgressSection(false);
-                        
-                        Notification.show(
-                            "✅ Export started! Check your downloads folder.",
-                            3000, 
-                            Notification.Position.TOP_END
-                        ).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-                        
-                        close(); // ✅ CERRAR EL MODAL
-                    });
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-            }).start();
             
         } catch (Exception e) {
             logger.error("❌ Error iniciando exportación", e);
