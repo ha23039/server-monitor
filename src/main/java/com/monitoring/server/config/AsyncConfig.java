@@ -9,8 +9,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 /**
- * Configuración para tareas asíncronas y programadas
- * Optimiza el rendimiento de los CRON jobs de recolección de métricas y exportación
+ * 🔧 Configuración consolidada para tareas asíncronas, programadas y exportación
+ * Optimiza el rendimiento de CRON jobs, recolección de métricas y exportación
  */
 @Configuration
 @EnableAsync
@@ -41,13 +41,15 @@ public class AsyncConfig {
     }
     
     /**
-     * Executor para tareas de exportación (CSV/PDF)
+     * 📊 Executor para tareas de exportación (CSV/PDF/Excel/JSON)
+     * ✅ MEJORADO: Configuración optimizada para exportaciones grandes
      * Separado del collector para no interferir con la recolección en tiempo real
      */
     @Bean(name = "exportExecutor") 
     public Executor exportExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         
+        // Configuración optimizada para exportaciones
         executor.setCorePoolSize(2);
         executor.setMaxPoolSize(5);         // Aumentado para mejor rendimiento
         executor.setQueueCapacity(100);     // Aumentado para manejar más tareas
@@ -56,7 +58,7 @@ public class AsyncConfig {
         executor.setWaitForTasksToCompleteOnShutdown(true);
         executor.setAwaitTerminationSeconds(30);
         
-        // Política de rechazo mejorada
+        // Política de rechazo mejorada - Si el pool está lleno, ejecutar en el hilo que llama
         executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
         
         executor.initialize();
@@ -64,8 +66,32 @@ public class AsyncConfig {
     }
     
     /**
+     * 🧹 Executor para tareas de limpieza de archivos temporales de exportación
+     * ✅ NUEVO: Dedicado a cleanup de exports para no saturar otros pools
+     */
+    @Bean(name = "cleanupExecutor")
+    public Executor cleanupExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        
+        executor.setCorePoolSize(1);
+        executor.setMaxPoolSize(2);
+        executor.setQueueCapacity(10);
+        executor.setKeepAliveSeconds(300);   // 5 minutos - tareas de limpieza son menos frecuentes
+        
+        executor.setThreadNamePrefix("ServerMonitor-Cleanup-");
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(10);
+        
+        // Para cleanup, usar DiscardPolicy - si está saturado, descartar tareas de limpieza
+        executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.DiscardPolicy());
+        
+        executor.initialize();
+        return executor;
+    }
+    
+    /**
      * Executor para procesamiento de datos pesados (opcional)
-     * Solo agregar si realmente lo necesitas
+     * Útil para análisis complejos y generación de reportes avanzados
      */
     @Bean(name = "dataProcessingExecutor")
     public Executor dataProcessingExecutor() {
@@ -78,6 +104,30 @@ public class AsyncConfig {
         
         executor.setThreadNamePrefix("ServerMonitor-DataProcessing-");
         executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
+        
+        executor.initialize();
+        return executor;
+    }
+    
+    /**
+     * 📧 Executor para notificaciones asíncronas (futuro)
+     * ✅ NUEVO: Para envío de emails, webhooks, etc. sin bloquear exportaciones
+     */
+    @Bean(name = "notificationExecutor")
+    public Executor notificationExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        
+        executor.setCorePoolSize(1);
+        executor.setMaxPoolSize(3);
+        executor.setQueueCapacity(20);
+        executor.setKeepAliveSeconds(120);
+        
+        executor.setThreadNamePrefix("ServerMonitor-Notification-");
+        executor.setWaitForTasksToCompleteOnShutdown(false); // No bloquear shutdown por notificaciones
+        executor.setAwaitTerminationSeconds(5);
+        
+        // Para notificaciones, usar DiscardOldestPolicy - mantener las más recientes
+        executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.DiscardOldestPolicy());
         
         executor.initialize();
         return executor;

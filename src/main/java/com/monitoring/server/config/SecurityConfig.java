@@ -54,6 +54,35 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // Rutas públicas de la API
                 .requestMatchers("/api/public/**", "/api/health/**").permitAll()
+                
+                // === 📊 CONFIGURACIÓN DE EXPORTACIÓN ===
+                .requestMatchers("/api/export/health").permitAll()
+                
+                // Endpoints CSV - Acceso para viewer, operator y admin
+                .requestMatchers("/api/export/csv/**").hasAnyAuthority("ROLE_admin", "ROLE_operator", "ROLE_viewer")
+                
+                // Endpoints PDF - Solo operator y admin (más recursos)
+                .requestMatchers("/api/export/pdf/**").hasAnyAuthority("ROLE_admin", "ROLE_operator")
+                
+                // Endpoints Excel - Solo operator y admin (más recursos)  
+                .requestMatchers("/api/export/excel/**").hasAnyAuthority("ROLE_admin", "ROLE_operator")
+                
+                // Endpoint de métricas generales - Acceso amplio
+                .requestMatchers("/api/export/metrics").hasAnyAuthority("ROLE_admin", "ROLE_operator", "ROLE_viewer")
+                
+                // Endpoint de procesos - Solo operator y admin (información sensible)
+                .requestMatchers("/api/export/processes").hasAnyAuthority("ROLE_admin", "ROLE_operator")
+                
+                // Reporte completo - Solo operator y admin (información completa)
+                .requestMatchers("/api/export/complete-report").hasAnyAuthority("ROLE_admin", "ROLE_operator")
+                
+                // Exportación personalizada - Solo admin (acceso total)
+                .requestMatchers("/api/export/custom").hasAuthority("ROLE_admin")
+                
+                // Configuración y formatos - Acceso amplio para UI
+                .requestMatchers("/api/export/formats", "/api/export/config").hasAnyAuthority("ROLE_admin", "ROLE_operator", "ROLE_viewer")
+                // === FIN CONFIGURACIÓN DE EXPORTACIÓN ===
+                
                 // Rutas solo para administradores (usando roles de Auth0)
                 .requestMatchers("/api/admin/**").hasAuthority("ROLE_admin")
                 // Rutas para operators o admin

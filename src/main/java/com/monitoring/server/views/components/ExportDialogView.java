@@ -1,16 +1,12 @@
 package com.monitoring.server.views.components;
 
 import java.time.LocalDateTime;
-import java.util.concurrent.CompletableFuture;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import com.monitoring.server.dto.export.ExportRequest;
-import com.monitoring.server.dto.export.ExportResult;
-import com.monitoring.server.service.interfaces.ExportService;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
@@ -32,21 +28,13 @@ import com.vaadin.flow.component.radiobutton.RadioGroupVariant;
 import com.vaadin.flow.component.textfield.TextField;
 
 /**
- * 🎨 Dialog avanzado para configurar y ejecutar exportaciones
- * Incluye filtros, vista previa y descarga automática
+ * 🎨 Dialog simplificado para exportaciones - SIN dependencias circulares
+ * Utiliza llamadas directas a endpoints en lugar de servicios inyectados
  */
 @Component
 public class ExportDialogView extends Dialog {
 
     private static final Logger logger = LoggerFactory.getLogger(ExportDialogView.class);
-@Autowired
-public void setExportService(ExportService exportService) {
-    this.exportService = exportService;
-    System.out.println("✅ ExportService inyectado en ExportDialogView");
-}
-
-@Autowired
-private ExportService exportService;
     
     // Componentes principales
     private RadioButtonGroup<String> typeSelector;
@@ -65,10 +53,10 @@ private ExportService exportService;
     private Span progressLabel;
     private Button exportButton;
     private Button cancelButton;
+    private VerticalLayout progressSection;
     
     // Estado
     private boolean isExporting = false;
-    private CompletableFuture<ExportResult> currentExport;
     
     public ExportDialogView() {
         initializeDialog();
@@ -107,7 +95,8 @@ private ExportService exportService;
         mainLayout.add(createAdvancedOptionsSection());
         
         // === SECCIÓN 5: PROGRESO Y ACCIONES ===
-        mainLayout.add(createProgressSection());
+        progressSection = createProgressSection();
+        mainLayout.add(progressSection);
         mainLayout.add(createActionButtonsSection());
         
         add(mainLayout);
@@ -334,7 +323,7 @@ private ExportService exportService;
         open();
     }
     
-    // === MÉTODOS DE EXPORTACIÓN ===
+    // === MÉTODOS DE EXPORTACIÓN SIMPLIFICADOS ===
     
     private void startExport() {
         if (isExporting) {
@@ -342,74 +331,121 @@ private ExportService exportService;
         }
         
         try {
-            ExportRequest request = buildExportRequest();
-            
             setExportingState(true);
             showProgressSection(true);
             
-            // Ejecutar exportación según el tipo
-            currentExport = switch (typeSelector.getValue()) {
-                case "System Metrics" -> exportService.exportSystemMetrics(request);
-                case "Process Data" -> exportService.exportProcessData(request);
-                case "Complete Report" -> exportService.exportCompleteReport(request);
-                case "Custom Export" -> exportService.exportCustomData(request);
-                default -> exportService.exportSystemMetrics(request);
-            };
+            // Construir URL del endpoint según configuración
+            String exportUrl = buildExportUrl();
             
-            // Manejar resultado
-            currentExport.thenAccept(result -> {
+            logger.info("🚀 Iniciando descarga desde: {}", exportUrl);
+            
+            // Usar JavaScript para abrir la descarga
+            UI.getCurrent().getPage().executeJs("""
+                console.log('🚀 Abriendo descarga:', $0);
+                
+                // Crear un enlace temporal para la descarga
+                const link = document.createElement('a');
+                link.href = $0;
+                link.target = '_blank';
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                console.log('✅ Descarga iniciada exitosamente');
+                """, exportUrl).then(result -> {
+                
+                // Simular un pequeño delay para dar feedback al usuario
                 UI.getCurrent().access(() -> {
-                    handleExportResult(result);
+                    setExportingState(false);
+                    showProgressSection(false);
+                    
+                    Notification.show(
+                        "✅ Export started! Check your downloads folder.",
+                        3000, 
+                        Notification.Position.TOP_END
+                    ).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
+                    
+                    close();
                 });
-            }).exceptionally(throwable -> {
-                UI.getCurrent().access(() -> {
-                    handleExportError(throwable);
-                });
-                return null;
             });
             
         } catch (Exception e) {
+            logger.error("❌ Error iniciando exportación", e);
             handleExportError(e);
         }
     }
     
-    private ExportRequest buildExportRequest() {
-        ExportRequest request = new ExportRequest();
+    private String buildExportUrl() {
+        String baseUrl = "/api/export";
+        String type = typeSelector.getValue();
+        String format = formatSelector.getValue();
+        String period = mapPeriodToString(periodSelector.getValue());
         
-        // Tipo y formato
-        request.setType(mapTypeToEnum(typeSelector.getValue()));
-        request.setFormat(ExportRequest.ExportFormat.valueOf(formatSelector.getValue()));
-        
-        // Fechas
-        if ("Custom Range".equals(periodSelector.getValue())) {
-            request.setStartDate(startDatePicker.getValue());
-            request.setEndDate(endDatePicker.getValue());
-        } else {
-            request.setPeriod(mapPeriodToString(periodSelector.getValue()));
-        }
-        
-        // Opciones
-        request.setIncludeCharts(includeChartsCheckbox.getValue());
-        request.setIncludeExecutiveSummary(includeExecutiveSummaryCheckbox.getValue());
-        request.setIncludeDetailedAnalysis(includeDetailedAnalysisCheckbox.getValue());
-        request.setReportTitle(reportTitleField.getValue());
-        
-        // Filtro de procesos
-        if (processFilterSelector.isVisible()) {
-            request.setProcessFilter(processFilterSelector.getValue());
-        }
-        
-        return request;
-    }
-    
-    private ExportRequest.ExportType mapTypeToEnum(String type) {
-        return switch (type) {
-            case "System Metrics" -> ExportRequest.ExportType.METRICS;
-            case "Process Data" -> ExportRequest.ExportType.PROCESSES;
-            case "Complete Report" -> ExportRequest.ExportType.COMPLETE_REPORT;
-            case "Custom Export" -> ExportRequest.ExportType.CUSTOM;
-            default -> ExportRequest.ExportType.METRICS;
+        // Construir URL según el tipo seleccionado
+        String endpoint = switch (type) {
+            case "System Metrics" -> {
+                if ("CSV".equals(format)) {
+                    yield baseUrl + "/csv/metrics?period=" + period;
+                } else {
+                    yield baseUrl + "/metrics?format=" + format + "&period=" + period;
+                }
+            }
+            case "Process Data" -> {
+                String filter = processFilterSelector.getValue();
+                if ("CSV".equals(format)) {
+                    yield baseUrl + "/csv/processes?filter=" + filter;
+                } else {
+                    yield baseUrl + "/processes?format=" + format + "&filter=" + filter;
+                }
+            }
+            case "Complete Report" -> {
+                if ("PDF".equals(format)) {
+                    yield baseUrl + "/pdf/complete-report?period=" + period;
+                } else if ("EXCEL".equals(format)) {
+                    yield baseUrl + "/excel/analysis?period=" + period;
+                } else {
+                    yield baseUrl + "/complete-report?format=" + format + "&period=" + period;
+                }
+            }
+            default -> baseUrl + "/metrics?format=CSV&period=24H";
         };
+        
+        // Agregar parámetros adicionales
+        StringBuilder urlBuilder = new StringBuilder(endpoint);
+        
+        // Agregar título del reporte si está especificado
+        if (reportTitleField.getValue() != null && !reportTitleField.getValue().trim().isEmpty()) {
+            urlBuilder.append(endpoint.contains("?") ? "&" : "?")
+                     .append("reportTitle=").append(reportTitleField.getValue().trim());
+        }
+        
+        // Agregar parámetros de fechas personalizadas si están seleccionadas
+        if ("Custom Range".equals(periodSelector.getValue()) && 
+            startDatePicker.getValue() != null && endDatePicker.getValue() != null) {
+            
+            urlBuilder.append(endpoint.contains("?") ? "&" : "?")
+                     .append("startDate=").append(startDatePicker.getValue().toString())
+                     .append("&endDate=").append(endDatePicker.getValue().toString());
+        }
+        
+        // Agregar parámetros de opciones avanzadas
+        if (includeChartsCheckbox.getValue()) {
+            urlBuilder.append(urlBuilder.toString().contains("?") ? "&" : "?")
+                     .append("includeCharts=true");
+        }
+        
+        if (includeExecutiveSummaryCheckbox.getValue()) {
+            urlBuilder.append(urlBuilder.toString().contains("?") ? "&" : "?")
+                     .append("includeExecutiveSummary=true");
+        }
+        
+        if (includeDetailedAnalysisCheckbox.getValue()) {
+            urlBuilder.append(urlBuilder.toString().contains("?") ? "&" : "?")
+                     .append("includeDetailedAnalysis=true");
+        }
+        
+        return urlBuilder.toString();
     }
     
     private String mapPeriodToString(String period) {
@@ -423,40 +459,11 @@ private ExportService exportService;
         };
     }
     
-    private void handleExportResult(ExportResult result) {
-    setExportingState(false);
-    showProgressSection(false);
-    
-    if (result.isSuccess()) {
-        logger.info("✅ Export exitoso: {}", result.getFilename());
-        
-        // ✅ SOLUCIÓN SIMPLE: Abrir directamente el endpoint
-        String directUrl = "/api/export/pdf/complete?format=PDF&period=24H";
-        
-        UI.getCurrent().getPage().executeJs("""
-            console.log('🚀 Abriendo descarga directa...');
-            window.open($0, '_blank');
-        """, directUrl);
-        
-        Notification.show(
-            "✅ Opening download in new tab: " + result.getFilename(),
-            3000, 
-            Notification.Position.TOP_END
-        ).addThemeVariants(NotificationVariant.LUMO_SUCCESS);
-        
-        close();
-    } else {
-        Notification.show(
-            "❌ Export failed: " + result.getErrorMessage(),
-            5000, 
-            Notification.Position.TOP_END
-        ).addThemeVariants(NotificationVariant.LUMO_ERROR);
-    }
-}
-    
     private void handleExportError(Throwable error) {
         setExportingState(false);
         showProgressSection(false);
+        
+        logger.error("❌ Error en exportación", error);
         
         Notification.show(
             "❌ Export error: " + error.getMessage(),
@@ -465,57 +472,6 @@ private ExportService exportService;
         ).addThemeVariants(NotificationVariant.LUMO_ERROR);
     }
     
-private void triggerDownload(ExportResult result) {
-    logger.info("🔽 Iniciando descarga: {} - {}", result.getFilename(), result.getFormattedSize());
-    
-    try {
-        // Crear URL de descarga con timestamp para evitar cache
-        String downloadUrl = "/api/export/download/" + result.getExportId() + "?t=" + System.currentTimeMillis();
-        
-        // Abrir en nueva ventana para descarga
-        getElement().executeJs("""
-            console.log('🔽 Iniciando descarga:', $0);
-            const link = document.createElement('a');
-            link.href = $0;
-            link.download = $1;
-            link.target = '_blank';
-            link.style.display = 'none';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-            // También intentar abrir en nueva pestaña como fallback
-            setTimeout(() => {
-                window.open($0, '_blank');
-            }, 500);
-            """, downloadUrl, result.getFilename());
-            
-    } catch (Exception e) {
-        logger.error("❌ Error en descarga", e);
-        
-        // Fallback: usar el método básico de blob
-        getElement().executeJs("""
-            try {
-                const byteArray = new Uint8Array($0);
-                const blob = new Blob([byteArray], { type: $1 });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = $2;
-                a.style.display = 'none';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                console.log('✅ Descarga fallback completada');
-            } catch (error) {
-                console.error('❌ Error en descarga fallback:', error);
-                alert('Error en descarga: ' + error.message);
-            }
-        """, result.getData(), result.getMimeType(), result.getFilename());
-    }
-}
-    
     private void setExportingState(boolean exporting) {
         this.isExporting = exporting;
         exportButton.setEnabled(!exporting);
@@ -523,19 +479,15 @@ private void triggerDownload(ExportResult result) {
         
         if (exporting) {
             exportButton.setIcon(VaadinIcon.CLOCK.create());
+            progressLabel.setText("Preparing download...");
         } else {
             exportButton.setIcon(VaadinIcon.DOWNLOAD.create());
         }
     }
     
     private void showProgressSection(boolean show) {
-        getChildren()
-            .filter(component -> component.getClass().getSimpleName().contains("VerticalLayout"))
-            .map(component -> (VerticalLayout) component)
-            .forEach(layout -> {
-                layout.getChildren()
-                    .filter(child -> child.getClassNames().contains("progress-section"))
-                    .forEach(child -> child.setVisible(show));
-            });
+        if (progressSection != null) {
+            progressSection.setVisible(show);
+        }
     }
 }

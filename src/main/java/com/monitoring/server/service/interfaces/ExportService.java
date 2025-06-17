@@ -1,53 +1,52 @@
 package com.monitoring.server.service.interfaces;
 
 import java.util.concurrent.CompletableFuture;
-
 import com.monitoring.server.dto.export.ExportRequest;
 import com.monitoring.server.dto.export.ExportResult;
 
 /**
- * 🚀 Interfaz del servicio principal de exportación
- * Define las operaciones de exportación disponibles
+ * 📊 Interface para el servicio de exportación
+ * Define operaciones para exportar datos del sistema en múltiples formatos
  */
 public interface ExportService {
     
     /**
-     * 📊 Exportar métricas del sistema
+     * Exportar métricas del sistema
      */
     CompletableFuture<ExportResult> exportSystemMetrics(ExportRequest request);
     
     /**
-     * ⚙️ Exportar datos de procesos
+     * Exportar datos de procesos
      */
     CompletableFuture<ExportResult> exportProcessData(ExportRequest request);
     
     /**
-     * 📈 Exportar reporte completo del sistema
+     * Exportar reporte completo del sistema
      */
     CompletableFuture<ExportResult> exportCompleteReport(ExportRequest request);
     
     /**
-     * 🎨 Exportación personalizada
+     * Exportar datos personalizados
      */
     CompletableFuture<ExportResult> exportCustomData(ExportRequest request);
     
     /**
-     * 📋 Obtener estado de una exportación en progreso
+     * Obtener estado de exportación por ID
      */
     ExportResult getExportStatus(String exportId);
     
     /**
-     * ❌ Cancelar una exportación en progreso
+     * Cancelar exportación en progreso
      */
     boolean cancelExport(String exportId);
     
     /**
-     * 🧹 Limpiar archivos temporales de exportación
+     * Limpiar archivos temporales
      */
     void cleanupTempFiles();
     
     /**
-     * ✅ Verificar si el servicio de exportación está disponible
+     * Verificar disponibilidad del servicio
      */
     boolean isExportServiceAvailable();
 }

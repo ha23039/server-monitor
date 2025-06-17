@@ -22,11 +22,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.monitoring.server.dto.export.ExportRequest;
 import com.monitoring.server.dto.export.ExportResult;
-import com.monitoring.server.service.interfaces.ExportService;  // ← IMPORT CORREGIDO
+import com.monitoring.server.service.interfaces.ExportService;
 
 /**
- * 🚀 REST Controller para operaciones de exportación
- * Proporciona endpoints para descargar reportes en múltiples formatos
+ * 🚀 REST Controller para operaciones de exportación - VERSIÓN CORREGIDA
+ * Endpoints simplificados y funcionales para descargar reportes
  */
 @RestController
 @RequestMapping("/api/export")
@@ -39,14 +39,14 @@ public class ExportController {
     private ExportService exportService;
     
     /**
-     * 📊 Exportar métricas del sistema
-     * GET /api/export/metrics?format=PDF&period=24H
+     * 📊 Endpoint principal para exportar métricas del sistema
+     * GET /api/export/metrics?format=CSV&period=24H
      */
     @GetMapping("/metrics")
     @PreAuthorize("hasAnyAuthority('ROLE_admin', 'ROLE_operator', 'ROLE_viewer')")
     public CompletableFuture<ResponseEntity<byte[]>> exportMetrics(
             @RequestParam(defaultValue = "CSV") String format,
-            @RequestParam(required = false) String period,
+            @RequestParam(required = false, defaultValue = "24H") String period,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
             @RequestParam(defaultValue = "false") boolean includeCharts,
@@ -69,27 +69,31 @@ public class ExportController {
                 request.withExecutiveSummary();
             }
             
-            // Ejecutar exportación asíncrona
+            // Ejecutar exportación
             return exportService.exportSystemMetrics(request)
                 .thenApply(result -> {
                     if (result.isSuccess()) {
+                        logger.info("✅ Exportación exitosa: {}", result.getFilename());
                         return createDownloadResponse(result);
                     } else {
                         logger.error("❌ Error en exportación: {}", result.getErrorMessage());
                         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                            .body(result.getErrorMessage().getBytes());
+                            .contentType(MediaType.TEXT_PLAIN)
+                            .body(("Export error: " + result.getErrorMessage()).getBytes());
                     }
                 })
                 .exceptionally(throwable -> {
                     logger.error("❌ Error crítico en exportación", throwable);
                     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                        .body("Export failed: internal server error".getBytes());
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .body(("Export failed: " + throwable.getMessage()).getBytes());
                 });
                 
         } catch (Exception e) {
             logger.error("❌ Error procesando solicitud de exportación", e);
             return CompletableFuture.completedFuture(
                 ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .contentType(MediaType.TEXT_PLAIN)
                     .body(("Invalid request: " + e.getMessage()).getBytes())
             );
         }
@@ -97,33 +101,32 @@ public class ExportController {
     
     /**
      * ⚙️ Exportar procesos del sistema
-     * GET /api/export/processes?format=EXCEL&filter=HIGH_CPU
+     * GET /api/export/processes?format=CSV&filter=HIGH_CPU
      */
     @GetMapping("/processes")
     @PreAuthorize("hasAnyAuthority('ROLE_admin', 'ROLE_operator')")
     public CompletableFuture<ResponseEntity<byte[]>> exportProcesses(
             @RequestParam(defaultValue = "CSV") String format,
-            @RequestParam(required = false) String filter,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
+            @RequestParam(required = false, defaultValue = "ALL") String filter) {
         
         logger.info("🔄 Solicitud de exportación de procesos: formato={}, filtro={}", format, filter);
         
         try {
             ExportRequest request = ExportRequest.processes()
-                .format(ExportRequest.ExportFormat.valueOf(format.toUpperCase()))
-                .dateRange(startDate, endDate);
+                .format(ExportRequest.ExportFormat.valueOf(format.toUpperCase()));
             
             request.setProcessFilter(filter);
             
             return exportService.exportProcessData(request)
                 .thenApply(result -> {
                     if (result.isSuccess()) {
+                        logger.info("✅ Exportación de procesos exitosa: {}", result.getFilename());
                         return createDownloadResponse(result);
                     } else {
                         logger.error("❌ Error en exportación de procesos: {}", result.getErrorMessage());
                         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                            .body(result.getErrorMessage().getBytes());
+                            .contentType(MediaType.TEXT_PLAIN)
+                            .body(("Process export error: " + result.getErrorMessage()).getBytes());
                     }
                 });
                 
@@ -131,6 +134,7 @@ public class ExportController {
             logger.error("❌ Error procesando exportación de procesos", e);
             return CompletableFuture.completedFuture(
                 ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .contentType(MediaType.TEXT_PLAIN)
                     .body(("Invalid request: " + e.getMessage()).getBytes())
             );
         }
@@ -143,8 +147,8 @@ public class ExportController {
     @GetMapping("/complete-report")
     @PreAuthorize("hasAnyAuthority('ROLE_admin', 'ROLE_operator')")
     public CompletableFuture<ResponseEntity<byte[]>> exportCompleteReport(
-            @RequestParam(defaultValue = "PDF") String format,
-            @RequestParam(required = false) String period,
+            @RequestParam(defaultValue = "CSV") String format,
+            @RequestParam(required = false, defaultValue = "24H") String period,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
             @RequestParam(defaultValue = "true") boolean includeCharts,
@@ -177,11 +181,13 @@ public class ExportController {
             return exportService.exportCompleteReport(request)
                 .thenApply(result -> {
                     if (result.isSuccess()) {
+                        logger.info("✅ Reporte completo exitoso: {}", result.getFilename());
                         return createDownloadResponse(result);
                     } else {
                         logger.error("❌ Error en reporte completo: {}", result.getErrorMessage());
                         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                            .body(result.getErrorMessage().getBytes());
+                            .contentType(MediaType.TEXT_PLAIN)
+                            .body(("Complete report error: " + result.getErrorMessage()).getBytes());
                     }
                 });
                 
@@ -189,6 +195,7 @@ public class ExportController {
             logger.error("❌ Error procesando reporte completo", e);
             return CompletableFuture.completedFuture(
                 ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .contentType(MediaType.TEXT_PLAIN)
                     .body(("Invalid request: " + e.getMessage()).getBytes())
             );
         }
@@ -217,11 +224,13 @@ public class ExportController {
             return exportService.exportCustomData(request)
                 .thenApply(result -> {
                     if (result.isSuccess()) {
+                        logger.info("✅ Exportación personalizada exitosa: {}", result.getFilename());
                         return createDownloadResponse(result);
                     } else {
                         logger.error("❌ Error en exportación personalizada: {}", result.getErrorMessage());
                         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                            .body(result.getErrorMessage().getBytes());
+                            .contentType(MediaType.TEXT_PLAIN)
+                            .body(("Custom export error: " + result.getErrorMessage()).getBytes());
                     }
                 });
                 
@@ -229,159 +238,27 @@ public class ExportController {
             logger.error("❌ Error procesando exportación personalizada", e);
             return CompletableFuture.completedFuture(
                 ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .contentType(MediaType.TEXT_PLAIN)
                     .body(("Invalid request: " + e.getMessage()).getBytes())
             );
         }
     }
     
-    /**
-     * 📋 Obtener formatos de exportación disponibles
-     * GET /api/export/formats
-     */
-    @GetMapping("/formats")
-    @PreAuthorize("hasAnyAuthority('ROLE_admin', 'ROLE_operator', 'ROLE_viewer')")
-    public ResponseEntity<ExportFormatsResponse> getAvailableFormats() {
-        
-        logger.info("📋 Solicitud de formatos disponibles");
-        
-        ExportFormatsResponse response = new ExportFormatsResponse();
-        
-        // Formatos disponibles
-        for (ExportRequest.ExportFormat format : ExportRequest.ExportFormat.values()) {
-            FormatInfo formatInfo = new FormatInfo();
-            formatInfo.name = format.name();
-            formatInfo.displayName = format.name().toUpperCase();
-            formatInfo.extension = format.getExtension();
-            formatInfo.mimeType = format.getMimeType();
-            formatInfo.supportsCharts = format == ExportRequest.ExportFormat.PDF || format == ExportRequest.ExportFormat.EXCEL;
-            formatInfo.description = getFormatDescription(format);
-            
-            response.formats.add(formatInfo);
-        }
-        
-        // Tipos de exportación disponibles
-        for (ExportRequest.ExportType type : ExportRequest.ExportType.values()) {
-            ExportTypeInfo typeInfo = new ExportTypeInfo();
-            typeInfo.name = type.name();
-            typeInfo.displayName = type.getDisplayName();
-            typeInfo.description = getTypeDescription(type);
-            
-            response.types.add(typeInfo);
-        }
-        
-        return ResponseEntity.ok(response);
-    }
-    
-    /**
-     * 📊 Obtener configuración de exportación disponible
-     * GET /api/export/config
-     */
-    @GetMapping("/config")
-    @PreAuthorize("hasAnyAuthority('ROLE_admin', 'ROLE_operator', 'ROLE_viewer')")
-    public ResponseEntity<ExportConfigResponse> getExportConfiguration() {
-        
-        logger.info("⚙️ Solicitud de configuración de exportación");
-        
-        ExportConfigResponse response = new ExportConfigResponse();
-        response.maxFileSizeMb = 50;
-        response.maxRecordsPerExport = 100000;
-        response.defaultFormat = "CSV";
-        response.defaultPeriod = "24H";
-        response.supportsAsync = true;
-        response.supportsCustomFilters = true;
-        response.supportedPeriods = new String[]{"1H", "6H", "12H", "24H", "7D", "30D", "90D"};
-        response.supportedProcessFilters = new String[]{"ALL", "HIGH_CPU", "HIGH_MEMORY", "HIGH_DISK", "ALERTS_ONLY"};
-        
-        return ResponseEntity.ok(response);
-    }
-    
-    // === MÉTODOS DE UTILIDAD ===
-    
-    private ResponseEntity<byte[]> createDownloadResponse(ExportResult result) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.parseMediaType(result.getMimeType()));
-        headers.setContentDispositionFormData("attachment", result.getFilename());
-        headers.add("X-Export-Size", result.getFormattedSize());
-        headers.add("X-Export-Records", String.valueOf(result.getRecordCount()));
-        headers.add("X-Export-Generated", result.getGeneratedAt().toString());
-        
-        logger.info("✅ Descarga preparada: {} - {}", result.getFilename(), result.getFormattedSize());
-        
-        return ResponseEntity.ok()
-            .headers(headers)
-            .body(result.getData());
-    }
-    
-    private String getFormatDescription(ExportRequest.ExportFormat format) {
-        return switch (format) {
-            case CSV -> "Comma-separated values file, excellent for data analysis";
-            case PDF -> "Professional report with charts and formatting";
-            case EXCEL -> "Multi-sheet Excel workbook with advanced features";
-            case JSON -> "Structured data format for API integration";
-        };
-    }
-    
-    private String getTypeDescription(ExportRequest.ExportType type) {
-        return switch (type) {
-            case METRICS -> "System performance metrics over time";
-            case PROCESSES -> "Running processes and resource usage";
-            case COMPLETE_REPORT -> "Comprehensive system analysis report";
-            case CUSTOM -> "User-defined export configuration";
-        };
-    }
-    
-    // === CLASES DE RESPUESTA ===
-    
-    public static class ExportFormatsResponse {
-        public java.util.List<FormatInfo> formats = new java.util.ArrayList<>();
-        public java.util.List<ExportTypeInfo> types = new java.util.ArrayList<>();
-    }
-    
-    public static class FormatInfo {
-        public String name;
-        public String displayName;
-        public String extension;
-        public String mimeType;
-        public boolean supportsCharts;
-        public String description;
-    }
-    
-    public static class ExportTypeInfo {
-        public String name;
-        public String displayName;
-        public String description;
-    }
-    
-    public static class ExportConfigResponse {
-        public int maxFileSizeMb;
-        public int maxRecordsPerExport;
-        public String defaultFormat;
-        public String defaultPeriod;
-        public boolean supportsAsync;
-        public boolean supportsCustomFilters;
-        public String[] supportedPeriods;
-        public String[] supportedProcessFilters;
-    }
+    // === ENDPOINTS SIMPLIFICADOS PARA EL DASHBOARD ===
 
-    // === ENDPOINTS ESPECÍFICOS PARA EL DASHBOARD ===
-
-/**
- * 📊 CSV Metrics endpoint específico
- */
-@GetMapping("/csv/metrics")
-@PreAuthorize("hasAnyAuthority('ROLE_admin', 'ROLE_operator', 'ROLE_viewer')")
-public CompletableFuture<ResponseEntity<byte[]>> exportMetricsCSV(
-        @RequestParam(required = false, defaultValue = "24H") String period,
-        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
-        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
-    
-    logger.info("🔍 Exportación CSV de métricas solicitada");
-    
-    try {
+    /**
+     * 📊 CSV Metrics endpoint directo
+     */
+    @GetMapping("/csv/metrics")
+    @PreAuthorize("hasAnyAuthority('ROLE_admin', 'ROLE_operator', 'ROLE_viewer')")
+    public CompletableFuture<ResponseEntity<byte[]>> exportMetricsCSV(
+            @RequestParam(required = false, defaultValue = "24H") String period) {
+        
+        logger.info("🔍 Exportación CSV de métricas directa - período: {}", period);
+        
         ExportRequest request = ExportRequest.metrics()
             .format(ExportRequest.ExportFormat.CSV)
-            .period(period)
-            .dateRange(startDate, endDate);
+            .period(period);
         
         return exportService.exportSystemMetrics(request)
             .thenApply(result -> {
@@ -389,53 +266,27 @@ public CompletableFuture<ResponseEntity<byte[]>> exportMetricsCSV(
                     return createDownloadResponse(result);
                 } else {
                     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                        .body(result.getErrorMessage().getBytes());
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .body(("CSV export failed: " + result.getErrorMessage()).getBytes());
                 }
             });
-    } catch (Exception e) {
-        logger.error("❌ Error en CSV export", e);
-        return CompletableFuture.completedFuture(
-            ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(("CSV export failed: " + e.getMessage()).getBytes())
-        );
     }
-}
 
-/**
- * 📊 PDF Complete report endpoint específico
- */
-@GetMapping("/pdf/complete-report")
-@PreAuthorize("hasAnyAuthority('ROLE_admin', 'ROLE_operator')")
-public CompletableFuture<ResponseEntity<byte[]>> exportCompleteReportPDF(
-        @RequestParam(required = false, defaultValue = "24H") String period,
-        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
-        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate,
-        @RequestParam(defaultValue = "true") boolean includeCharts,
-        @RequestParam(defaultValue = "true") boolean includeExecutiveSummary,
-        @RequestParam(defaultValue = "true") boolean includeDetailedAnalysis,
-        @RequestParam(required = false) String reportTitle) {
-    
-    logger.info("📊 Exportación PDF reporte completo solicitada");
-    
-    try {
+    /**
+     * 📊 PDF Complete report endpoint directo
+     */
+    @GetMapping("/pdf/complete-report")
+    @PreAuthorize("hasAnyAuthority('ROLE_admin', 'ROLE_operator')")
+    public CompletableFuture<ResponseEntity<byte[]>> exportCompleteReportPDF(
+            @RequestParam(required = false, defaultValue = "24H") String period) {
+        
+        logger.info("📊 Exportación PDF reporte completo directo - período: {}", period);
+        
         ExportRequest request = ExportRequest.completeReport()
             .format(ExportRequest.ExportFormat.PDF)
             .period(period)
-            .dateRange(startDate, endDate);
-        
-        if (includeCharts) {
-            request.withCharts();
-        }
-        
-        if (includeExecutiveSummary) {
-            request.withExecutiveSummary();
-        }
-        
-        request.setIncludeDetailedAnalysis(includeDetailedAnalysis);
-        
-        if (reportTitle != null && !reportTitle.trim().isEmpty()) {
-            request.title(reportTitle);
-        }
+            .withCharts()
+            .withExecutiveSummary();
         
         return exportService.exportCompleteReport(request)
             .thenApply(result -> {
@@ -443,35 +294,25 @@ public CompletableFuture<ResponseEntity<byte[]>> exportCompleteReportPDF(
                     return createDownloadResponse(result);
                 } else {
                     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                        .body(result.getErrorMessage().getBytes());
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .body(("PDF export failed: " + result.getErrorMessage()).getBytes());
                 }
             });
-    } catch (Exception e) {
-        logger.error("❌ Error en PDF export", e);
-        return CompletableFuture.completedFuture(
-            ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(("PDF export failed: " + e.getMessage()).getBytes())
-        );
     }
-}
 
-/**
- * 📊 Excel Analysis endpoint específico
- */
-@GetMapping("/excel/analysis")
-@PreAuthorize("hasAnyAuthority('ROLE_admin', 'ROLE_operator')")
-public CompletableFuture<ResponseEntity<byte[]>> exportAnalysisExcel(
-        @RequestParam(required = false, defaultValue = "24H") String period,
-        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
-        @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
-    
-    logger.info("📈 Exportación Excel análisis solicitada");
-    
-    try {
+    /**
+     * 📊 Excel Analysis endpoint directo
+     */
+    @GetMapping("/excel/analysis")
+    @PreAuthorize("hasAnyAuthority('ROLE_admin', 'ROLE_operator')")
+    public CompletableFuture<ResponseEntity<byte[]>> exportAnalysisExcel(
+            @RequestParam(required = false, defaultValue = "24H") String period) {
+        
+        logger.info("📈 Exportación Excel análisis directo - período: {}", period);
+        
         ExportRequest request = ExportRequest.metrics()
             .format(ExportRequest.ExportFormat.EXCEL)
-            .period(period)
-            .dateRange(startDate, endDate);
+            .period(period);
         
         return exportService.exportSystemMetrics(request)
             .thenApply(result -> {
@@ -479,29 +320,22 @@ public CompletableFuture<ResponseEntity<byte[]>> exportAnalysisExcel(
                     return createDownloadResponse(result);
                 } else {
                     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                        .body(result.getErrorMessage().getBytes());
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .body(("Excel export failed: " + result.getErrorMessage()).getBytes());
                 }
             });
-    } catch (Exception e) {
-        logger.error("❌ Error en Excel export", e);
-        return CompletableFuture.completedFuture(
-            ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(("Excel export failed: " + e.getMessage()).getBytes())
-        );
     }
-}
 
-/**
- * 📊 CSV Processes endpoint específico
- */
-@GetMapping("/csv/processes")
-@PreAuthorize("hasAnyAuthority('ROLE_admin', 'ROLE_operator')")
-public CompletableFuture<ResponseEntity<byte[]>> exportProcessesCSV(
-        @RequestParam(required = false, defaultValue = "ALL") String filter) {
-    
-    logger.info("⚙️ Exportación CSV de procesos solicitada");
-    
-    try {
+    /**
+     * 📊 CSV Processes endpoint directo
+     */
+    @GetMapping("/csv/processes")
+    @PreAuthorize("hasAnyAuthority('ROLE_admin', 'ROLE_operator')")
+    public CompletableFuture<ResponseEntity<byte[]>> exportProcessesCSV(
+            @RequestParam(required = false, defaultValue = "ALL") String filter) {
+        
+        logger.info("⚙️ Exportación CSV de procesos directo - filtro: {}", filter);
+        
         ExportRequest request = ExportRequest.processes()
             .format(ExportRequest.ExportFormat.CSV);
         request.setProcessFilter(filter);
@@ -512,15 +346,43 @@ public CompletableFuture<ResponseEntity<byte[]>> exportProcessesCSV(
                     return createDownloadResponse(result);
                 } else {
                     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                        .body(result.getErrorMessage().getBytes());
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .body(("Processes CSV export failed: " + result.getErrorMessage()).getBytes());
                 }
             });
-    } catch (Exception e) {
-        logger.error("❌ Error en processes CSV export", e);
-        return CompletableFuture.completedFuture(
-            ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(("Processes CSV export failed: " + e.getMessage()).getBytes())
-        );
     }
-}
+    
+    /**
+     * 🔍 Health check del servicio de exportación
+     */
+    @GetMapping("/health")
+    public ResponseEntity<String> exportHealthCheck() {
+        logger.info("🔍 Health check del servicio de exportación");
+        
+        if (exportService.isExportServiceAvailable()) {
+            return ResponseEntity.ok("Export service is available and ready");
+        } else {
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body("Export service is not available");
+        }
+    }
+    
+    // === MÉTODO DE UTILIDAD ===
+    
+    private ResponseEntity<byte[]> createDownloadResponse(ExportResult result) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType(result.getMimeType()));
+        headers.setContentDispositionFormData("attachment", result.getFilename());
+        headers.add("X-Export-Size", result.getFormattedSize());
+        headers.add("X-Export-Records", String.valueOf(result.getRecordCount()));
+        headers.add("X-Export-Generated", result.getGeneratedAt().toString());
+        headers.add("Access-Control-Expose-Headers", "X-Export-Size,X-Export-Records,X-Export-Generated");
+        
+        logger.info("✅ Descarga preparada: {} - {} - {} registros", 
+                   result.getFilename(), result.getFormattedSize(), result.getRecordCount());
+        
+        return ResponseEntity.ok()
+            .headers(headers)
+            .body(result.getData());
+    }
 }
