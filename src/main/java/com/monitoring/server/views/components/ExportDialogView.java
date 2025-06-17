@@ -66,6 +66,7 @@ public class ExportDialogView extends Dialog {
     
     // Estado
     private boolean isExporting = false;
+    private long exportStartTime;
     
     public ExportDialogView() {
         initializeDialog();
@@ -639,6 +640,9 @@ public class ExportDialogView extends Dialog {
     
     private void setExportingState(boolean exporting) {
         this.isExporting = exporting;
+        if (exporting) {
+        this.exportStartTime = System.currentTimeMillis();
+    }
         exportButton.setEnabled(!exporting);
         exportButton.setText(exporting ? "Exporting..." : "Export Data");
         
