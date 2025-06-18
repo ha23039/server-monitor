@@ -24,8 +24,6 @@ import com.vaadin.flow.component.Component;
 import com.vaadin.flow.component.UI;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
-import com.vaadin.flow.component.contextmenu.MenuItem;
-import com.vaadin.flow.component.contextmenu.SubMenu;
 import com.vaadin.flow.component.grid.Grid;
 import com.vaadin.flow.component.grid.GridVariant;
 import com.vaadin.flow.component.html.Div;
@@ -34,7 +32,6 @@ import com.vaadin.flow.component.html.H2;
 import com.vaadin.flow.component.html.Span;
 import com.vaadin.flow.component.icon.Icon;
 import com.vaadin.flow.component.icon.VaadinIcon;
-import com.vaadin.flow.component.menubar.MenuBar;
 import com.vaadin.flow.component.notification.Notification;
 import com.vaadin.flow.component.notification.NotificationVariant;
 import com.vaadin.flow.component.orderedlayout.FlexComponent;
@@ -48,12 +45,11 @@ import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
 
 /**
- * 🚀 DASHBOARD ULTRA PRO - VERSIÓN CORREGIDA CON EXPORTACIÓN FUNCIONAL
- * ✅ Sistema de exportación completamente integrado y funcional
- * ✅ Gráficos SVG animados ultra responsivos
- * ✅ Código optimizado y sin dependencias externas
- * ✅ Compatible con Auth0 y control de roles
- * ✅ ExportDialogView correctamente inicializado
+ * 🚀 DASHBOARD ULTRA PRO - VERSIÓN LIMPIA SIN NOTIFICACIONES MOLESTAS
+ * ✅ Solo el modal de exportación completo (sin listado básico)
+ * ✅ Sin notificaciones de "modo básico"
+ * ✅ Mantiene todas las funcionalidades avanzadas
+ * ✅ Un solo botón elegante que abre el modal completo
  */
 @Route(value = "dashboard", layout = MainLayout.class)
 @PageTitle("🚀 Enterprise Dashboard - Métricas en Tiempo Real")
@@ -65,7 +61,7 @@ public class DashboardView extends VerticalLayout {
     private final ProcessInfoService processInfoService;
     private final AlertConfigService alertConfigService;
 
-    // ✅ CORRECCIÓN: Inyección correcta del ExportDialogView
+    // Sistema de exportación limpio
     private ExportDialogView exportDialogView;
     
     // Componentes principales
@@ -81,9 +77,9 @@ public class DashboardView extends VerticalLayout {
     private String selectedProcessFilter = "ALL";
     private Tabs periodTabs;
     private Select<String> processFilterSelect;
-    private Button exportButton;
+    private Button exportButton; // SOLO ESTE BOTÓN (modal)
     private Button fullscreenButton;
-    private MenuBar exportMenuBar;
+    // ❌ ELIMINADO: MenuBar exportMenuBar (ya no se usa)
     
     // Estado del sistema
     private Span realtimeStatus;
@@ -102,15 +98,11 @@ public class DashboardView extends VerticalLayout {
         initializeUltraProDashboard();
     }
     
-    // ✅ CORRECCIÓN: Método para inyectar ExportDialogView
-    @Autowired(required = false) // No obligatorio para evitar errores de arranque
+    // Inyección del ExportDialogView (sin logs molestos)
+    @Autowired(required = false)
     public void setExportDialogView(ExportDialogView exportDialogView) {
         this.exportDialogView = exportDialogView;
-        if (exportDialogView != null) {
-            System.out.println("✅ ExportDialogView inyectado correctamente");
-        } else {
-            System.out.println("⚠️ ExportDialogView no disponible - Modo básico");
-        }
+        // ❌ ELIMINADO: Los system.out.println molestos
     }
     
     private void initializeUltraProDashboard() {
@@ -124,7 +116,7 @@ public class DashboardView extends VerticalLayout {
         buildDashboardStructure();
         loadInitialData();
         setupRealtimeUpdates();
-        initializeExportSystem();
+        // ❌ ELIMINADO: initializeExportSystem() (ya no necesario)
     }
     
     private void setupUltraStyles() {
@@ -157,312 +149,11 @@ public class DashboardView extends VerticalLayout {
         // Indicadores de estado
         createStatusIndicators();
         
-        // Sistema de exportación ultra integrado
-       // createUltraExportSystem();
+        // ❌ ELIMINADO: createUltraExportSystem() (ya no se usa el MenuBar)
     }
     
-    // === SISTEMA DE EXPORTACIÓN ULTRA COMPLETO CORREGIDO ===
-  /*  private void createUltraExportSystem() {
-        exportMenuBar = new MenuBar();
-        exportMenuBar.addClassName("ultra-export-menu");
-        
-        exportMenuBar.getStyle()
-            .set("background", "linear-gradient(135deg, #4F46E5, #7C3AED)")
-            .set("border-radius", "16px")
-            .set("box-shadow", "0 8px 32px rgba(79, 70, 229, 0.3)")
-            .set("border", "1px solid rgba(255,255,255,0.1)")
-            .set("backdrop-filter", "blur(20px)")
-            .set("transition", "all 0.3s ease");
-        
-        // Botón principal de exportación
-         MenuItem exportMain = exportMenuBar.addItem("📊 Export Data", e -> openQuickExport());
-        exportMain.getElement().getStyle()
-            .set("color", "white")
-            .set("font-weight", "700")
-            .set("padding", "1rem 2rem")
-            .set("font-size", "1rem");
-        
-        // Submenu con opciones avanzadas
-        SubMenu exportSubMenu = exportMain.getSubMenu();
-        
-        exportSubMenu.addItem("🚀 Quick CSV Export", e -> quickExportCSV());
-        exportSubMenu.addItem("📊 Complete PDF Report", e -> quickExportPDF());
-        exportSubMenu.addItem("📈 Excel Analysis", e -> quickExportExcel());
-        exportSubMenu.addItem("⚙️ Process Report", e -> quickExportProcesses());
-        
-        exportSubMenu.addSeparator();
-        
-        exportSubMenu.addItem("🎨 Custom Export...", e -> openAdvancedExport());
-        exportSubMenu.addItem("📱 Mobile Report", e -> quickExportMobile());
-        exportSubMenu.addItem("🔄 Scheduled Export", e -> setupScheduledExport());
-        
-        // Efectos hover ultra suaves
-        exportMenuBar.getElement().addEventListener("mouseenter", e -> {
-            exportMenuBar.getStyle()
-                .set("transform", "translateY(-2px)")
-                .set("box-shadow", "0 12px 48px rgba(79, 70, 229, 0.4)");
-        });
-        
-        exportMenuBar.getElement().addEventListener("mouseleave", e -> {
-            exportMenuBar.getStyle()
-                .set("transform", "translateY(0)")
-                .set("box-shadow", "0 8px 32px rgba(79, 70, 229, 0.3)");
-        });
-    } */
-    
-    private void initializeExportSystem() {
-        try {
-            if (exportDialogView == null) {
-                // ✅ CORRECCIÓN: Crear ExportDialogView manualmente si no está inyectado
-                createBasicExportDialog();
-                //showNotification("⚠️ Sistema de exportación básico iniciado", NotificationVariant.LUMO_CONTRAST);
-            } else {
-                showNotification("✅ Sistema de exportación ultra listo", NotificationVariant.LUMO_SUCCESS);
-            }
-        } catch (Exception e) {
-            showNotification("❌ Error inicializando exportación: " + e.getMessage(), NotificationVariant.LUMO_ERROR);
-            e.printStackTrace();
-        }
-    }
-    
-    // ✅ CORRECCIÓN: Crear dialog básico si no hay inyección
-    private void createBasicExportDialog() {
-        try {
-            // Crear una instancia básica para evitar nulls
-            exportDialogView = new ExportDialogView();
-            System.out.println("✅ ExportDialogView básico creado manualmente");
-        } catch (Exception e) {
-            System.err.println("❌ Error creando ExportDialogView básico: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
-    
-    // === MÉTODOS DE EXPORTACIÓN ULTRA COMPLETOS CORREGIDOS ===
-    
-    private void openQuickExport() {
-        try {
-            if (exportDialogView != null) {
-                exportDialogView.open();
-                showNotification("📊 Abriendo exportación completa...", NotificationVariant.LUMO_PRIMARY);
-            } else {
-                // ✅ CORRECCIÓN: Exportación básica vía REST
-                openBasicExportMenu();
-            }
-        } catch (Exception e) {
-            showNotification("❌ Error: " + e.getMessage(), NotificationVariant.LUMO_ERROR);
-            e.printStackTrace();
-        }
-    }
-    
-    // ✅ CORRECCIÓN: Método de exportación básica alternativo
-    private void openBasicExportMenu() {
-        showNotification("📊 Preparando exportación básica...", NotificationVariant.LUMO_PRIMARY);
-        
-        // Llamar directamente a los endpoints REST
-        String baseUrl =  "";
-        
-        UI.getCurrent().getPage().executeJs(
-            String.format("""
-                const exportOptions = [
-                    { name: 'CSV Metrics', url: '%s/api/export/csv/metrics' },
-                    { name: 'PDF Report', url: '%s/api/export/pdf/metrics' },
-                    { name: 'Excel Analysis', url: '%s/api/export/excel/metrics' }
-                ];
-                
-                const menu = document.createElement('div');
-                menu.style.cssText = `
-                    position: fixed;
-                    top: 50%%;
-                    left: 50%%;
-                    transform: translate(-50%%, -50%%);
-                    background: linear-gradient(135deg, #1e293b, #334155);
-                    border-radius: 16px;
-                    padding: 2rem;
-                    border: 1px solid rgba(255,255,255,0.1);
-                    backdrop-filter: blur(20px);
-                    box-shadow: 0 20px 50px rgba(0,0,0,0.3);
-                    z-index: 10000;
-                    color: white;
-                    font-family: 'Inter', sans-serif;
-                `;
-                
-                menu.innerHTML = `
-                    <h3 style="margin: 0 0 1.5rem 0; color: #4F46E5; font-size: 1.5rem;">📊 Quick Export</h3>
-                    <div id="export-buttons"></div>
-                    <button id="close-export" style="
-                        margin-top: 1.5rem;
-                        padding: 0.5rem 1rem;
-                        background: #6B7280;
-                        border: none;
-                        border-radius: 8px;
-                        color: white;
-                        cursor: pointer;
-                        width: 100%%;
-                    ">Close</button>
-                `;
-                
-                const buttonContainer = menu.querySelector('#export-buttons');
-                exportOptions.forEach(option => {
-                    const btn = document.createElement('button');
-                    btn.style.cssText = `
-                        display: block;
-                        width: 100%%;
-                        padding: 1rem;
-                        margin-bottom: 0.5rem;
-                        background: linear-gradient(135deg, #4F46E5, #7C3AED);
-                        border: none;
-                        border-radius: 12px;
-                        color: white;
-                        cursor: pointer;
-                        font-weight: 600;
-                        transition: all 0.3s ease;
-                    `;
-                    btn.textContent = option.name;
-                    btn.onclick = () => {
-                        window.open(option.url, '_blank');
-                        document.body.removeChild(menu);
-                    };
-                    buttonContainer.appendChild(btn);
-                });
-                
-                menu.querySelector('#close-export').onclick = () => {
-                    document.body.removeChild(menu);
-                };
-                
-                document.body.appendChild(menu);
-                """, baseUrl, baseUrl, baseUrl)
-        );
-    }
-    
-    private void quickExportCSV() {
-        try {
-            if (exportDialogView != null) {
-                exportDialogView.open();
-                showNotification("📊 Exportando métricas a CSV...", NotificationVariant.LUMO_PRIMARY);
-                
-                // Trigger específico para CSV
-                UI.getCurrent().getPage().executeJs("""
-                    setTimeout(() => {
-                        const exportEvent = new CustomEvent('quickExport', {
-                            detail: { type: 'CSV', data: 'metrics' }
-                        });
-                        window.dispatchEvent(exportEvent);
-                    }, 500);
-                """);
-            } else {
-                // ✅ CORRECCIÓN: Descarga directa vía REST
-                downloadDirectCSV();
-            }
-        } catch (Exception e) {
-            showNotification("❌ Error en exportación CSV: " + e.getMessage(), NotificationVariant.LUMO_ERROR);
-        }
-    }
-    
-    // ✅ CORRECCIÓN: Métodos de descarga directa
-    private void downloadDirectCSV() {
-        showNotification("📊 Descargando CSV...", NotificationVariant.LUMO_PRIMARY);
-        UI.getCurrent().getPage().open("/api/export/csv/metrics", "_blank");
-    }
-    
-    private void quickExportPDF() {
-        try {
-            if (exportDialogView != null) {
-                exportDialogView.open();
-                
-                UI.getCurrent().getPage().executeJs("""
-                    setTimeout(() => {
-                        const exportEvent = new CustomEvent('quickExport', {
-                            detail: { type: 'PDF', data: 'complete' }
-                        });
-                        window.dispatchEvent(exportEvent);
-                    }, 500);
-                """);
-            } else {
-                // ✅ CORRECCIÓN: Descarga directa de PDF
-                showNotification("📊 Descargando PDF...", NotificationVariant.LUMO_PRIMARY);
-                UI.getCurrent().getPage().open("/api/export/pdf/complete", "_blank");
-            }
-        } catch (Exception e) {
-            showNotification("❌ Error en exportación PDF: " + e.getMessage(), NotificationVariant.LUMO_ERROR);
-        }
-    }
-    
-    private void quickExportExcel() {
-        try {
-            if (exportDialogView != null) {
-                exportDialogView.open();
-                showNotification("📈 Generando análisis Excel...", NotificationVariant.LUMO_PRIMARY);
-                
-                UI.getCurrent().getPage().executeJs("""
-                    setTimeout(() => {
-                        const exportEvent = new CustomEvent('quickExport', {
-                            detail: { type: 'EXCEL', data: 'analysis' }
-                        });
-                        window.dispatchEvent(exportEvent);
-                    }, 500);
-                """);
-            } else {
-                // ✅ CORRECCIÓN: Descarga directa de Excel
-                showNotification("📈 Descargando Excel...", NotificationVariant.LUMO_PRIMARY);
-                UI.getCurrent().getPage().open("/api/export/excel/analysis", "_blank");
-            }
-        } catch (Exception e) {
-            showNotification("❌ Error en exportación Excel: " + e.getMessage(), NotificationVariant.LUMO_ERROR);
-        }
-    }
-    
-    private void quickExportProcesses() {
-        try {
-            if (exportDialogView != null) {
-                exportDialogView.open();
-            } else {
-                showNotification("⚙️ Descargando reporte de procesos...", NotificationVariant.LUMO_PRIMARY);
-                UI.getCurrent().getPage().open("/api/export/csv/processes", "_blank");
-            }
-        } catch (Exception e) {
-            showNotification("❌ Error en exportación de procesos: " + e.getMessage(), NotificationVariant.LUMO_ERROR);
-        }
-    }
-    
-    private void quickExportMobile() {
-        try {
-            showNotification("📱 Generando reporte optimizado para móvil...", NotificationVariant.LUMO_PRIMARY);
-            
-            // Crear reporte específico para móvil
-            UI.getCurrent().getPage().executeJs("""
-                const exportEvent = new CustomEvent('mobileExport', {
-                    detail: { 
-                        type: 'MOBILE_OPTIMIZED', 
-                        format: 'JSON',
-                        timestamp: new Date().toISOString()
-                    }
-                });
-                window.dispatchEvent(exportEvent);
-            """);
-            
-        } catch (Exception e) {
-            showNotification("❌ Error en exportación móvil: " + e.getMessage(), NotificationVariant.LUMO_ERROR);
-        }
-    }
-    
-    private void setupScheduledExport() {
-        showNotification("🔄 Configurando exportación programada...", NotificationVariant.LUMO_PRIMARY);
-        Notification.show("🔄 Próximamente: Exportación programada automática", 4000, Notification.Position.MIDDLE);
-    }
-    
-    private void openAdvancedExport() {
-        try {
-            if (exportDialogView != null) {
-                exportDialogView.open();
-                showNotification("🎨 Abriendo exportación personalizada...", NotificationVariant.LUMO_PRIMARY);
-            } else {
-                // ✅ CORRECCIÓN: Menú avanzado alternativo
-                openBasicExportMenu();
-            }
-        } catch (Exception e) {
-            showNotification("❌ Error en exportación avanzada: " + e.getMessage(), NotificationVariant.LUMO_ERROR);
-        }
-    }
+    // ❌ ELIMINADOS: Todos los métodos del MenuBar de exportación
+    // (createUltraExportSystem, openQuickExport, openBasicExportMenu, etc.)
     
     // === COMPONENTES ULTRA RESPONSIVOS ===
     
@@ -502,7 +193,7 @@ public class DashboardView extends VerticalLayout {
             .set("position", "relative")
             .set("overflow", "hidden");
         
-        // ✅ CORRECCIÓN: JavaScript sin selector problemático
+        // JavaScript responsivo sin selector problemático
         card.getElement().executeJs(String.format("""
             const card = this;
             
@@ -805,11 +496,11 @@ public class DashboardView extends VerticalLayout {
             updateProcessData();
         });
         
-        // Botón de exportación principal
+        // 🎯 SOLO EL BOTÓN DE MODAL (el bueno)
         exportButton = new Button("📊 Exportar", VaadinIcon.DOWNLOAD.create());
         exportButton.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         styleUltraButton(exportButton, "#4F46E5");
-        exportButton.addClickListener(e -> showExportDialog());
+        exportButton.addClickListener(e -> showExportModalDirectly()); // Directo al modal
         
         // Botón pantalla completa
         fullscreenButton = new Button("⛶ Pantalla Completa", VaadinIcon.EXPAND_SQUARE.create());
@@ -1041,7 +732,8 @@ public class DashboardView extends VerticalLayout {
         exportSection.setAlignItems(FlexComponent.Alignment.CENTER);
         exportSection.setSpacing(true);
         
-        exportSection.add(exportButton, exportMenuBar, fullscreenButton);
+        // ✅ SOLO LOS BOTONES ESENCIALES (sin el MenuBar molesto)
+        exportSection.add(exportButton, fullscreenButton);
         
         footer.add(systemInfo, exportSection);
         return footer;
@@ -1073,7 +765,8 @@ public class DashboardView extends VerticalLayout {
         
         lastUpdateTime.setText("⏱️ " + LocalDateTime.now().format(timeFormatter));
         
-        showNotification("🚀 Dashboard Ultra Pro híbrido cargado", NotificationVariant.LUMO_SUCCESS);
+        // ✅ RESTAURADO: Notificación importante de carga
+        showNotification("🚀 Dashboard cargado correctamente", NotificationVariant.LUMO_SUCCESS);
     }
     
     private void setupRealtimeUpdates() {
@@ -1610,22 +1303,40 @@ public class DashboardView extends VerticalLayout {
                 .set("box-shadow", "0 4px 14px rgba(0, 0, 0, 0.1)"));
     }
     
-    // === MÉTODOS DE EVENTOS PRINCIPALES ===
+    // === 🎯 MÉTODO PRINCIPAL DE EXPORTACIÓN (SOLO MODAL) ===
     
-    private void showExportDialog() {
+    private void showExportModalDirectly() {
         try {
             if (exportDialogView != null) {
                 exportDialogView.open();
+                // ✅ RESTAURADO: Notificación útil para el usuario
                 showNotification("📊 Abriendo exportación avanzada...", NotificationVariant.LUMO_PRIMARY);
             } else {
-                showNotification("⚠️ Sistema de exportación inicializándose...", NotificationVariant.LUMO_CONTRAST);
-                openBasicExportMenu();
+                // ❌ SOLO ESTA era la molesta (sin "modo básico" ni "sistema híbrido")
+                createBasicExportDialog();
+                if (exportDialogView != null) {
+                    exportDialogView.open();
+                    showNotification("📊 Exportación lista", NotificationVariant.LUMO_PRIMARY);
+                }
             }
         } catch (Exception e) {
-            showNotification("❌ Error abriendo exportación: " + e.getMessage(), NotificationVariant.LUMO_ERROR);
+            showNotification("❌ Error: " + e.getMessage(), NotificationVariant.LUMO_ERROR);
             e.printStackTrace();
         }
     }
+    
+    // ✅ Método de emergencia (sin logs molestos)
+    private void createBasicExportDialog() {
+        try {
+            exportDialogView = new ExportDialogView();
+            // ❌ ELIMINADO: System.out.println molesto
+        } catch (Exception e) {
+            // Log silencioso solo para debug
+            // System.err.println("Error creando ExportDialogView: " + e.getMessage());
+        }
+    }
+    
+    // === MÉTODOS DE EVENTOS PRINCIPALES ===
     
     private void toggleFullscreen() {
         getElement().executeJs("""
@@ -1728,25 +1439,27 @@ public class DashboardView extends VerticalLayout {
         """);
     }
     
-    // === EVENTO ONATTACH CON INICIALIZACIÓN COMPLETA CORREGIDO ===
+    // === EVENTO ONATTACH LIMPIO ===
     
     @Override
     protected void onAttach(AttachEvent attachEvent) {
         super.onAttach(attachEvent);
         
-        // ✅ CORRECCIÓN: JavaScript sin selector problemático
+        // ✅ ANIMACIÓN DE ENTRADA LIMPIA
         getElement().executeJs("""
-            // Animación de entrada híbrida ultra suave CORREGIDA
+            // Animación de entrada suave
             const elements = document.querySelectorAll('.ultra-dashboard > *');
             elements.forEach((el, index) => {
-                el.style.opacity = '0';
-                el.style.transform = 'translateY(30px)';
-                
-                setTimeout(() => {
-                    el.style.transition = 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
-                    el.style.opacity = '1';
-                    el.style.transform = 'translateY(0)';
-                }, index * 100);
+                if (el) {
+                    el.style.opacity = '0';
+                    el.style.transform = 'translateY(30px)';
+                    
+                    setTimeout(() => {
+                        el.style.transition = 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
+                        el.style.opacity = '1';
+                        el.style.transform = 'translateY(0)';
+                    }, index * 100);
+                }
             });
             
             // Configurar eventos globales de exportación
@@ -1761,19 +1474,19 @@ public class DashboardView extends VerticalLayout {
                 exportCount: 0
             };
             
-            // Mensaje de bienvenida híbrido
-            console.log('🚀 Dashboard Ultra Pro Híbrido cargado');
+            // ✅ MENSAJE DE BIENVENIDA LIMPIO (sin spam)
+            console.log('🚀 Dashboard Ultra Pro cargado');
             console.log('📊 Sistema de exportación: ACTIVO');
             console.log('🎨 Gráficos SVG animados: ACTIVO');
             console.log('📱 Responsive design: ACTIVO');
             console.log('🔐 Auth0 integration: ACTIVO');
-            console.log('⚡ Performance monitoring: ACTIVO');
         """);
         
         // Inicializar características avanzadas
         initializeKeyboardShortcuts();
         setupAdvancedFeatures();
         
-        showNotification("✅ Dashboard híbrido conectado - Sistema completo activo", NotificationVariant.LUMO_SUCCESS);
+        // ❌ ELIMINADO: La notificación molesta del sistema híbrido
+        // Solo se muestra el log en consola para desarrolladores
     }
 }
