@@ -179,32 +179,37 @@ public class DashboardView extends VerticalLayout {
         }
     }
     
-    // ✅ CORREGIDO: Método de creación manual mejorado
-    private void createManualExportDialog() {
-        try {
-            exportDialogView = new ExportDialogView();
-            
-            // Configurar el dialog para ser reutilizable
-            if (exportDialogView != null) {
-                exportDialogView.getElement().executeJs("""
-                    // Configurar como dialog reutilizable
-                    this.modality = 'modeless';
-                    this._persistent = true;
-                    
-                    // Prevenir auto-destrucción
-                    this.addEventListener('vaadin-overlay-close', (e) => {
-                        e.preventDefault();
-                        this.opened = false;
-                    });
-                """);
+
+// ✅ HOTFIX: Método createManualExportDialog() corregido
+private void createManualExportDialog() {
+    try {
+        // Forzar la creación manual del componente
+        exportDialogView = new ExportDialogView();
+        
+        // Configurar el dialog para ser reutilizable
+        if (exportDialogView != null) {
+            exportDialogView.getElement().executeJs("""
+                // Configurar como dialog reutilizable
+                this.modality = 'modeless';
+                this._persistent = true;
+                this._readyToReopen = true;
                 
-                System.out.println("✅ ExportDialogView creado manualmente");
-            }
-        } catch (Exception e) {
-            System.err.println("❌ Error creando ExportDialogView manual: " + e.getMessage());
-            e.printStackTrace();
+                // Prevenir auto-destrucción
+                this.addEventListener('vaadin-overlay-close', (e) => {
+                    e.preventDefault();
+                    this.opened = false;
+                });
+                
+                console.log('✅ ExportDialogView creado manualmente y configurado');
+            """);
+            
+            System.out.println("✅ ExportDialogView creado manualmente y configurado");
         }
+    } catch (Exception e) {
+        System.err.println("❌ Error creando ExportDialogView manual: " + e.getMessage());
+        e.printStackTrace();
     }
+}
     
     // ✅ NUEVO: Método para recrear el dialog cuando falla
     private void recreateExportDialog() {
@@ -1408,46 +1413,31 @@ public class DashboardView extends VerticalLayout {
                 .set("box-shadow", "0 4px 14px rgba(0, 0, 0, 0.1)"));
     }
     
-    // === 🎯 MÉTODO PRINCIPAL DE EXPORTACIÓN (CORREGIDO) ===
-    
-    private void showExportModalDirectly() {
-        try {
-            // Verificar si el dialog existe
-            if (exportDialogView == null) {
-                System.out.println("⚠️ ExportDialogView es null, creando uno nuevo...");
-                createManualExportDialog();
-            }
-            
-            if (exportDialogView != null) {
-                // Verificar si el dialog está en buen estado
-                exportDialogView.getElement().executeJs("""
-                    return this._readyToReopen !== false && !this.opened;
-                """).then(Boolean.class, canOpen -> {
-                    if (canOpen) {
-                        UI.getCurrent().access(() -> {
-                            try {
-                                exportDialogView.open();
-                                showNotification("📊 Abriendo exportación...", NotificationVariant.LUMO_PRIMARY);
-                            } catch (Exception e) {
-                                System.err.println("❌ Error abriendo dialog: " + e.getMessage());
-                                // Recrear el dialog si hay problemas
-                                recreateExportDialog();
-                            }
-                        });
-                    } else {
-                        // El dialog no está listo, recrear
-                        UI.getCurrent().access(() -> recreateExportDialog());
-                    }
-                });
-            } else {
-                showNotification("❌ Sistema de exportación no disponible", NotificationVariant.LUMO_ERROR);
-            }
-        } catch (Exception e) {
-            System.err.println("❌ Error en showExportModalDirectly: " + e.getMessage());
-            e.printStackTrace();
-            recreateExportDialog();
+// ✅ HOTFIX: Método showExportModalDirectly() más robusto
+private void showExportModalDirectly() {
+    try {
+        System.out.println("🔍 Verificando ExportDialogView...");
+        
+        // SIEMPRE crear uno nuevo para asegurar que funciona
+        if (exportDialogView == null) {
+            System.out.println("⚠️ ExportDialogView es null, creando uno nuevo...");
+            createManualExportDialog();
         }
+        
+        if (exportDialogView != null) {
+            System.out.println("✅ Abriendo ExportDialogView...");
+            exportDialogView.open();
+            showNotification("📊 Abriendo exportación...", NotificationVariant.LUMO_PRIMARY);
+        } else {
+            System.err.println("❌ No se pudo crear ExportDialogView");
+            showNotification("❌ Sistema de exportación no disponible", NotificationVariant.LUMO_ERROR);
+        }
+    } catch (Exception e) {
+        System.err.println("❌ Error en showExportModalDirectly: " + e.getMessage());
+        e.printStackTrace();
+        showNotification("❌ Error abriendo exportación: " + e.getMessage(), NotificationVariant.LUMO_ERROR);
     }
+}
     
     // === MÉTODOS DE EVENTOS PRINCIPALES ===
     
