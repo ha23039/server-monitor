@@ -143,7 +143,7 @@ public class ExportDialogView extends Dialog {
         formatRow.setAlignItems(FlexComponent.Alignment.END);
         
         formatSelector = new ComboBox<>("Export Format");
-        formatSelector.setItems("CSV", "PDF", "EXCEL", "JSON");
+        formatSelector.setItems("CSV", "PDF", "EXCEL");
         formatSelector.setValue("CSV");
         formatSelector.setWidth("200px");
         formatSelector.setItemLabelGenerator(format -> {
@@ -151,7 +151,6 @@ public class ExportDialogView extends Dialog {
                 case "CSV" -> "📊 CSV - Data Analysis";
                 case "PDF" -> "📄 PDF - Professional Report";
                 case "EXCEL" -> "📈 Excel - Advanced Spreadsheet";
-                case "JSON" -> "🔧 JSON - API Integration";
                 default -> format;
             };
         });

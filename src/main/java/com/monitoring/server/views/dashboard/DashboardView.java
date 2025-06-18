@@ -158,11 +158,11 @@ public class DashboardView extends VerticalLayout {
         createStatusIndicators();
         
         // Sistema de exportación ultra integrado
-        createUltraExportSystem();
+       // createUltraExportSystem();
     }
     
     // === SISTEMA DE EXPORTACIÓN ULTRA COMPLETO CORREGIDO ===
-    private void createUltraExportSystem() {
+  /*  private void createUltraExportSystem() {
         exportMenuBar = new MenuBar();
         exportMenuBar.addClassName("ultra-export-menu");
         
@@ -175,7 +175,7 @@ public class DashboardView extends VerticalLayout {
             .set("transition", "all 0.3s ease");
         
         // Botón principal de exportación
-        MenuItem exportMain = exportMenuBar.addItem("📊 Export Data", e -> openQuickExport());
+         MenuItem exportMain = exportMenuBar.addItem("📊 Export Data", e -> openQuickExport());
         exportMain.getElement().getStyle()
             .set("color", "white")
             .set("font-weight", "700")
@@ -208,14 +208,14 @@ public class DashboardView extends VerticalLayout {
                 .set("transform", "translateY(0)")
                 .set("box-shadow", "0 8px 32px rgba(79, 70, 229, 0.3)");
         });
-    }
+    } */
     
     private void initializeExportSystem() {
         try {
             if (exportDialogView == null) {
                 // ✅ CORRECCIÓN: Crear ExportDialogView manualmente si no está inyectado
                 createBasicExportDialog();
-                showNotification("⚠️ Sistema de exportación básico iniciado", NotificationVariant.LUMO_CONTRAST);
+                //showNotification("⚠️ Sistema de exportación básico iniciado", NotificationVariant.LUMO_CONTRAST);
             } else {
                 showNotification("✅ Sistema de exportación ultra listo", NotificationVariant.LUMO_SUCCESS);
             }
