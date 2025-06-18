@@ -7,6 +7,7 @@ import java.nio.charset.StandardCharsets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import com.monitoring.server.dto.export.ExportRequest;
@@ -31,26 +32,26 @@ import com.vaadin.flow.component.progressbar.ProgressBar;
 import com.vaadin.flow.component.radiobutton.RadioButtonGroup;
 import com.vaadin.flow.component.radiobutton.RadioGroupVariant;
 import com.vaadin.flow.component.textfield.TextField;
+import com.vaadin.flow.spring.annotation.VaadinSessionScope;
 
 /**
- * 🎨 ExportDialogView COMPLETAMENTE CORREGIDO Y PERSISTENTE
- * ✅ Sistema de exportación robusto con recuperación automática
- * ✅ Configuración de persistencia para múltiples usos
- * ✅ Manejo correcto de estado y reset después de exportación
- * ✅ Sin JSON en el selector de formato
- * ✅ JavaScript completo para descarga
- * ✅ Persistencia entre múltiples usos
+ * 🎨 ExportDialogView SCOPED POR SESIÓN - SOLUCIÓN DEFINITIVA
+ * ✅ Una instancia por usuario/sesión para evitar conflictos
+ * ✅ Sistema de exportación robusto y aislado
+ * ✅ Sin problemas de concurrencia entre usuarios
+ * ✅ Persistencia individual por sesión
  */
 @Component
+@VaadinSessionScope  // ✅ CRÍTICO: Una instancia por sesión Vaadin
 public class ExportDialogView extends Dialog {
 
     private static final Logger logger = LoggerFactory.getLogger(ExportDialogView.class);
     
-    // ✅ Inyección de servicio
+    // ✅ Inyección de servicio (compartido está bien)
     @Autowired
     private ExportService exportService;
     
-    // Componentes principales
+    // Componentes principales (ahora individuales por sesión)
     private RadioButtonGroup<String> typeSelector;
     private ComboBox<String> formatSelector;
     private RadioButtonGroup<String> periodSelector;
@@ -69,19 +70,26 @@ public class ExportDialogView extends Dialog {
     private Button cancelButton;
     private VerticalLayout progressSection;
     
-    // Estado
+    // Estado (individual por sesión)
     private boolean isExporting = false;
     private long exportStartTime;
+    private String sessionId;
     
     public ExportDialogView() {
+        // Generar ID único para esta sesión
+        this.sessionId = "session-" + System.currentTimeMillis() + "-" + hashCode();
+        
+        logger.info("🔧 Creando ExportDialogView para sesión: {}", sessionId);
+        
         initializeDialog();
         createLayout();
         configureEvents();
         
-        // ✅ CONFIGURACIÓN DE PERSISTENCIA CRÍTICA
+        // ✅ CONFIGURACIÓN DE PERSISTENCIA POR SESIÓN
         getElement().executeJs("""
-            // Configurar como dialog persistente y reutilizable
+            // Configurar como dialog persistente y reutilizable POR SESIÓN
             this._persistent = true;
+            this._sessionId = $0;
             this.modality = 'modeless';
             this._readyToReopen = true;
             
@@ -97,24 +105,24 @@ public class ExportDialogView extends Dialog {
                     // Al cerrar, marcar como listo para reabrir
                     setTimeout(() => {
                         this._readyToReopen = true;
-                        console.log('✅ ExportDialog listo para reabrir');
+                        console.log('✅ ExportDialog sesión ' + $0 + ' listo para reabrir');
                     }, 100);
                 }
             });
             
-            console.log('✅ ExportDialogView inicializado con persistencia');
-        """);
+            console.log('✅ ExportDialogView inicializado con persistencia - Sesión: ' + $0);
+        """, sessionId);
     }
     
     private void initializeDialog() {
-        setHeaderTitle("📊 Export System Data");
+        setHeaderTitle("📊 Export System Data - Session: " + sessionId.substring(sessionId.length() - 8));
         setWidth("700px");
         setHeight("600px");
         setModal(true);
         setDraggable(true);
         setResizable(false);
         
-        addClassName("export-dialog");
+        addClassName("export-dialog-" + sessionId);
     }
     
     private void createLayout() {
@@ -175,7 +183,7 @@ public class ExportDialogView extends Dialog {
         formatRow.setAlignItems(FlexComponent.Alignment.END);
         
         formatSelector = new ComboBox<>("Export Format");
-        // ✅ CORREGIDO: Sin JSON (como solicitaste)
+        // ✅ Sin JSON
         formatSelector.setItems("CSV", "PDF", "EXCEL");
         formatSelector.setValue("CSV");
         formatSelector.setWidth("200px");
@@ -342,6 +350,7 @@ public class ExportDialogView extends Dialog {
     // === MÉTODOS PÚBLICOS PARA EL DASHBOARD ===
     
     public void openForMetrics() {
+        logger.info("🎯 Abriendo para métricas - Sesión: {}", sessionId);
         typeSelector.setValue("System Metrics");
         formatSelector.setValue("CSV");
         periodSelector.setValue("Last 24 Hours");
@@ -349,6 +358,7 @@ public class ExportDialogView extends Dialog {
     }
     
     public void openForProcesses() {
+        logger.info("🎯 Abriendo para procesos - Sesión: {}", sessionId);
         typeSelector.setValue("Process Data");
         formatSelector.setValue("EXCEL");
         periodSelector.setValue("Last Hour");
@@ -356,6 +366,7 @@ public class ExportDialogView extends Dialog {
     }
     
     public void openForCompleteReport() {
+        logger.info("🎯 Abriendo para reporte completo - Sesión: {}", sessionId);
         typeSelector.setValue("Complete Report");
         formatSelector.setValue("PDF");
         periodSelector.setValue("Last 24 Hours");
@@ -364,32 +375,34 @@ public class ExportDialogView extends Dialog {
         open();
     }
 
-    // === ✅ MÉTODO startExport COMPLETAMENTE CORREGIDO CON JAVASCRIPT COMPLETO ===
+    // === ✅ MÉTODO startExport CON LOGGING POR SESIÓN ===
     
     private void startExport() {
         if (isExporting) {
+            logger.warn("⚠️ Export ya en progreso para sesión: {}", sessionId);
             return;
         }
         
         try {
+            logger.info("🚀 Iniciando export para sesión: {}", sessionId);
             setExportingState(true);
             showProgressSection(true);
             
             // Construir URL del endpoint según configuración
             String exportUrl = buildExportUrl();
             
-            logger.info("🚀 Iniciando descarga desde: {}", exportUrl);
+            logger.info("🔗 URL construida para sesión {}: {}", sessionId, exportUrl);
             
-            // ✅ SOLUCIÓN COMPLETA: JavaScript maneja TODO + Reset de estado Java
+            // ✅ JavaScript con identificación de sesión
             UI.getCurrent().getPage().executeJs("""
-                console.log('🚀 Abriendo descarga:', $0);
+                console.log('🚀 Iniciando descarga para sesión ' + $1 + ':', $0);
                 
                 fetch($0, {
                     method: 'GET',
                     credentials: 'include'
                 })
                 .then(response => {
-                    console.log('Response status:', response.status);
+                    console.log('Response status para sesión ' + $1 + ':', response.status);
                     if (response.ok) {
                         return response.blob();
                     } else {
@@ -397,18 +410,17 @@ public class ExportDialogView extends Dialog {
                     }
                 })
                 .then(blob => {
-                    console.log('✅ Blob recibido:', blob.size, 'bytes');
+                    console.log('✅ Blob recibido para sesión ' + $1 + ':', blob.size, 'bytes');
                     
-                    // ✅ CORREGIDO: Detectar extensión desde URL (sin JSON)
                     const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-                    let extension = '.csv'; // Default
+                    let extension = '.csv';
                     
                     if ($0.includes('/pdf/')) extension = '.pdf';
                     else if ($0.includes('/excel/')) extension = '.xlsx';
                     else if ($0.includes('format=PDF')) extension = '.pdf';
                     else if ($0.includes('format=EXCEL')) extension = '.xlsx';
                     
-                    const filename = 'export_' + timestamp + extension;
+                    const filename = 'export_session_' + $1 + '_' + timestamp + extension;
                     
                     // Crear descarga
                     const url = URL.createObjectURL(blob);
@@ -421,42 +433,34 @@ public class ExportDialogView extends Dialog {
                     document.body.removeChild(a);
                     URL.revokeObjectURL(url);
                     
-                    console.log('✅ Descarga completada:', filename);
+                    console.log('✅ Descarga completada para sesión ' + $1 + ':', filename);
                     
-                    // ✅ CRÍTICO: Marcar como completado para que Java resetee estado
-                    window.exportCompleted = true;
+                    // Marcar como completado usando sessionId único
+                    window['exportCompleted_' + $1] = true;
                     
-                    // ✅ CRÍTICO: Resetear UI y cerrar modal
+                    // Resetear UI específica de esta sesión
                     setTimeout(() => {
-                        // Buscar el dialog y resetear su estado
-                        const dialog = document.querySelector('vaadin-dialog-overlay');
+                        const dialog = document.querySelector('.export-dialog-' + $1);
                         if (dialog) {
-                            // Resetear botón de exportación
                             const exportButton = dialog.querySelector('vaadin-button[theme*="primary"]');
                             if (exportButton) {
                                 exportButton.disabled = false;
                                 exportButton.textContent = 'Export Data';
-                                const icon = exportButton.querySelector('vaadin-icon');
-                                if (icon) {
-                                    icon.setAttribute('icon', 'vaadin:download');
-                                }
                             }
                             
-                            // Ocultar barra de progreso
                             const progressSection = dialog.querySelector('.progress-section');
                             if (progressSection) {
                                 progressSection.style.display = 'none';
                             }
                             
-                            // Cerrar modal
                             const closeButton = dialog.querySelector('vaadin-button[theme*="tertiary"]');
                             if (closeButton) {
                                 closeButton.click();
-                                console.log('✅ Modal cerrado y estado reseteado');
+                                console.log('✅ Modal cerrado para sesión ' + $1);
                             }
                         }
                         
-                        // Mostrar notificación
+                        // Notificación con ID de sesión
                         const notification = document.createElement('vaadin-notification');
                         notification.setAttribute('position', 'top-end');
                         notification.setAttribute('theme', 'success');
@@ -473,30 +477,25 @@ public class ExportDialogView extends Dialog {
                     }, 1000);
                 })
                 .catch(error => {
-                    console.error('❌ Error en descarga:', error);
+                    console.error('❌ Error en descarga para sesión ' + $1 + ':', error);
                     alert('Error downloading file: ' + error.message);
                     
-                    // ✅ CRÍTICO: Marcar como error para reseteo
-                    window.exportCompleted = true;
+                    window['exportCompleted_' + $1] = true;
                     
-                    // Resetear y cerrar modal también en caso de error
                     setTimeout(() => {
-                        const dialog = document.querySelector('vaadin-dialog-overlay');
+                        const dialog = document.querySelector('.export-dialog-' + $1);
                         if (dialog) {
-                            // Resetear botón
                             const exportButton = dialog.querySelector('vaadin-button[theme*="primary"]');
                             if (exportButton) {
                                 exportButton.disabled = false;
                                 exportButton.textContent = 'Export Data';
                             }
                             
-                            // Ocultar progreso
                             const progressSection = dialog.querySelector('.progress-section');
                             if (progressSection) {
                                 progressSection.style.display = 'none';
                             }
                             
-                            // Cerrar
                             const closeButton = dialog.querySelector('vaadin-button[theme*="tertiary"]');
                             if (closeButton) {
                                 closeButton.click();
@@ -504,48 +503,34 @@ public class ExportDialogView extends Dialog {
                         }
                     }, 500);
                 });
-                """, exportUrl);
+                """, exportUrl, sessionId);
             
-            // ✅ SOLUCIÓN: Polling para verificar cuando JavaScript termine y resetear estado Java
-            UI.getCurrent().getPage().executeJs("""
-                return window.exportCompleted || false;
-                """).then(Boolean.class, completed -> {
-                if (completed != null && completed) {
-                    // ✅ JavaScript terminó, resetear estado Java
-                    UI.getCurrent().access(() -> {
-                        resetExportState();
-                    });
-                } else {
-                    // ✅ Seguir verificando cada 500ms hasta que termine
-                    checkExportCompletion();
-                }
-            });
+            // Polling específico por sesión
+            checkExportCompletion();
             
         } catch (Exception e) {
-            logger.error("❌ Error iniciando exportación", e);
+            logger.error("❌ Error iniciando exportación para sesión {}: {}", sessionId, e.getMessage(), e);
             handleExportError(e);
         }
     }
     
-    // ✅ MÉTODO AUXILIAR: Verificar cuando JavaScript termine
+    // ✅ Verificación específica por sesión
     private void checkExportCompletion() {
         UI.getCurrent().getPage().executeJs("""
-            return window.exportCompleted || false;
-            """).then(Boolean.class, completed -> {
+            return window['exportCompleted_' + $0] || false;
+            """, sessionId).then(Boolean.class, completed -> {
             if (completed != null && completed) {
                 UI.getCurrent().access(() -> {
                     resetExportState();
                 });
             } else {
-                // Continuar verificando si no ha pasado mucho tiempo
-                if (System.currentTimeMillis() - exportStartTime < 30000) { // 30 segundos max
+                if (System.currentTimeMillis() - exportStartTime < 30000) {
                     UI.getCurrent().getPage().executeJs("""
                         setTimeout(() => {
                             // Trigger next check
                         }, 500);
                         """).then(result -> checkExportCompletion());
                 } else {
-                    // Timeout - resetear por seguridad
                     UI.getCurrent().access(() -> {
                         resetExportState();
                     });
@@ -554,30 +539,30 @@ public class ExportDialogView extends Dialog {
         });
     }
     
-    // ✅ MÉTODO AUXILIAR: Resetear estado Java completamente
+    // ✅ Reset específico por sesión
     private void resetExportState() {
         setExportingState(false);
         showProgressSection(false);
         
-        // Limpiar variable de JavaScript
-        UI.getCurrent().getPage().executeJs("delete window.exportCompleted;");
+        // Limpiar variable específica de sesión
+        UI.getCurrent().getPage().executeJs("delete window['exportCompleted_' + $0];", sessionId);
         
-        // ✅ CRÍTICO: Marcar como listo para reabrir
+        // Marcar como listo para reabrir
         getElement().executeJs("this._readyToReopen = true;");
         
-        logger.info("✅ Estado de exportación reseteado completamente");
+        logger.info("✅ Estado de exportación reseteado para sesión: {}", sessionId);
     }
 
-    // ✅ MÉTODO PARA CONSTRUIR URLS CORREGIDO - SIN JSON
+    // === RESTO DE MÉTODOS (iguales pero con logging por sesión) ===
+    
     private String buildExportUrl() {
         String baseUrl = "/vaadin-export";
         String type = typeSelector.getValue();
         String format = formatSelector.getValue();
         String period = mapPeriodToString(periodSelector.getValue());
         
-        logger.info("🔗 Construyendo URL - Type: {}, Format: {}, Period: {}", type, format, period);
+        logger.info("🔗 Construyendo URL para sesión {} - Type: {}, Format: {}, Period: {}", sessionId, type, format, period);
         
-        // ✅ CORREGIDO: Lógica sin JSON
         String endpoint = "";
         
         switch (type) {
@@ -610,16 +595,13 @@ public class ExportDialogView extends Dialog {
             default -> endpoint = baseUrl + "/csv/metrics?period=" + period;
         }
         
-        // Agregar parámetros adicionales
         StringBuilder urlBuilder = new StringBuilder(endpoint);
         
-        // Agregar título del reporte si está especificado
         if (reportTitleField.getValue() != null && !reportTitleField.getValue().trim().isEmpty()) {
             urlBuilder.append(endpoint.contains("?") ? "&" : "?")
                      .append("reportTitle=").append(encodeURIComponent(reportTitleField.getValue().trim()));
         }
         
-        // Agregar parámetros de fechas personalizadas si están seleccionadas
         if ("Custom Range".equals(periodSelector.getValue()) && 
             startDatePicker.getValue() != null && endDatePicker.getValue() != null) {
             
@@ -628,7 +610,6 @@ public class ExportDialogView extends Dialog {
                      .append("&endDate=").append(endDatePicker.getValue().toString());
         }
         
-        // Agregar parámetros de opciones avanzadas SOLO para PDF
         if (format.equals("PDF")) {
             if (includeChartsCheckbox.getValue()) {
                 urlBuilder.append(urlBuilder.toString().contains("?") ? "&" : "?")
@@ -646,14 +627,15 @@ public class ExportDialogView extends Dialog {
             }
         }
         
+        // Agregar sessionId como parámetro para tracking
+        urlBuilder.append(urlBuilder.toString().contains("?") ? "&" : "?")
+                 .append("sessionId=").append(sessionId);
+        
         String finalUrl = urlBuilder.toString();
-        logger.info("🔗 URL final construida: {}", finalUrl);
+        logger.info("🔗 URL final para sesión {}: {}", sessionId, finalUrl);
         return finalUrl;
     }
 
-    /**
-     * Encodes a string for use in a URL query parameter.
-     */
     private String encodeURIComponent(String value) {
         try {
             return URLEncoder.encode(value, StandardCharsets.UTF_8.toString());
@@ -665,11 +647,9 @@ public class ExportDialogView extends Dialog {
     private ExportRequest buildExportRequest() {
         ExportRequest request = new ExportRequest();
         
-        // Tipo y formato
         request.setType(mapTypeToEnum(typeSelector.getValue()));
         request.setFormat(ExportRequest.ExportFormat.valueOf(formatSelector.getValue()));
         
-        // Fechas
         if ("Custom Range".equals(periodSelector.getValue())) {
             request.setStartDate(startDatePicker.getValue());
             request.setEndDate(endDatePicker.getValue());
@@ -677,13 +657,11 @@ public class ExportDialogView extends Dialog {
             request.setPeriod(mapPeriodToString(periodSelector.getValue()));
         }
         
-        // Opciones
         request.setIncludeCharts(includeChartsCheckbox.getValue());
         request.setIncludeExecutiveSummary(includeExecutiveSummaryCheckbox.getValue());
         request.setIncludeDetailedAnalysis(includeDetailedAnalysisCheckbox.getValue());
         request.setReportTitle(reportTitleField.getValue());
         
-        // Filtro de procesos
         if (processFilterSelector.isVisible()) {
             request.setProcessFilter(processFilterSelector.getValue());
         }
@@ -717,7 +695,7 @@ public class ExportDialogView extends Dialog {
         showProgressSection(false);
         
         if (result.isSuccess()) {
-            logger.info("✅ Export exitoso: {}", result.getFilename());
+            logger.info("✅ Export exitoso para sesión {}: {}", sessionId, result.getFilename());
             
             triggerDownload(result);
             
@@ -729,7 +707,7 @@ public class ExportDialogView extends Dialog {
             
             close();
         } else {
-            logger.error("❌ Error en exportación: {}", result.getErrorMessage());
+            logger.error("❌ Error en exportación para sesión {}: {}", sessionId, result.getErrorMessage());
             Notification.show(
                 "❌ Export failed: " + result.getErrorMessage(),
                 5000, 
@@ -739,42 +717,34 @@ public class ExportDialogView extends Dialog {
     }
     
     private void triggerDownload(ExportResult result) {
-        logger.info("🔽 Iniciando descarga: {} - {}", result.getFilename(), result.getFormattedSize());
+        logger.info("🔽 Iniciando descarga para sesión {}: {} - {}", sessionId, result.getFilename(), result.getFormattedSize());
         
         UI.getCurrent().getPage().executeJs("""
-            console.log('🔽 Iniciando descarga:', $1);
+            console.log('🔽 Iniciando descarga para sesión ' + $2 + ':', $1);
             try {
-                // Convertir datos a Uint8Array
                 const byteArray = new Uint8Array($0);
-                
-                // Crear blob con tipo MIME correcto
-                const blob = new Blob([byteArray], { type: $2 });
-                
-                // Crear URL temporal
+                const blob = new Blob([byteArray], { type: $3 });
                 const url = URL.createObjectURL(blob);
                 
-                // Crear enlace de descarga
                 const link = document.createElement('a');
                 link.href = url;
-                link.download = $1;
+                link.download = 'session_' + $2 + '_' + $1;
                 link.style.display = 'none';
                 
-                // Ejecutar descarga
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
-                
-                // Limpiar URL temporal
                 URL.revokeObjectURL(url);
                 
-                console.log('✅ Descarga completada exitosamente');
+                console.log('✅ Descarga completada para sesión ' + $2);
             } catch (error) {
-                console.error('❌ Error en descarga:', error);
+                console.error('❌ Error en descarga para sesión ' + $2 + ':', error);
                 alert('Error downloading file: ' + error.message);
             }
             """, 
             result.getData(), 
             result.getFilename(), 
+            sessionId,
             result.getMimeType()
         );
     }
@@ -783,7 +753,7 @@ public class ExportDialogView extends Dialog {
         setExportingState(false);
         showProgressSection(false);
         
-        logger.error("❌ Error en exportación", error);
+        logger.error("❌ Error en exportación para sesión {}: {}", sessionId, error.getMessage(), error);
         
         Notification.show(
             "❌ Export error: " + error.getMessage(),
@@ -802,7 +772,7 @@ public class ExportDialogView extends Dialog {
         
         if (exporting) {
             exportButton.setIcon(VaadinIcon.CLOCK.create());
-            progressLabel.setText("Processing export...");
+            progressLabel.setText("Processing export for session " + sessionId.substring(sessionId.length() - 8) + "...");
         } else {
             exportButton.setIcon(VaadinIcon.DOWNLOAD.create());
         }
@@ -814,20 +784,24 @@ public class ExportDialogView extends Dialog {
         }
     }
     
-    // ✅ OVERRIDE del método close para asegurar persistencia
+    // ✅ OVERRIDE del método close con logging por sesión
     @Override
     public void close() {
+        logger.info("🔒 Cerrando dialog para sesión: {}", sessionId);
         super.close();
         
-        // ✅ CRÍTICO: Resetear estado al cerrar manualmente
         UI.getCurrent().access(() -> {
             setExportingState(false);
             showProgressSection(false);
             
-            // Marcar como listo para reabrir
             getElement().executeJs("this._readyToReopen = true;");
             
-            logger.info("✅ Dialog cerrado y reseteado manualmente");
+            logger.info("✅ Dialog cerrado y reseteado para sesión: {}", sessionId);
         });
+    }
+    
+    // ✅ Método para obtener información de la sesión
+    public String getSessionInfo() {
+        return "Session: " + sessionId + ", Ready: " + !isExporting;
     }
 }

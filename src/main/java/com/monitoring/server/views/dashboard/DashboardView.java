@@ -97,31 +97,22 @@ public class DashboardView extends VerticalLayout {
         initializeUltraProDashboard();
     }
     
-    // ✅ CORREGIDO: Inyección de dependencias mejorada
+    // ✅ CORREGIDO: Inyección para session scoped
     @Autowired(required = false)
     public void setExportDialogView(ExportDialogView exportDialogView) {
         this.exportDialogView = exportDialogView;
         
         if (exportDialogView != null) {
-            // Configurar el dialog inyectado para persistencia
+            // Configurar el dialog inyectado para persistencia por sesión
             exportDialogView.getElement().executeJs("""
-                // Marcar como persistente
+                // Marcar como persistente por sesión
                 this._injected = true;
                 this._persistent = true;
                 
-                // Configurar para múltiples usos
-                this.addEventListener('opened-changed', (e) => {
-                    if (!e.detail.value) {
-                        // Al cerrar, marcar como listo para reabrir
-                        setTimeout(() => {
-                            this._readyToReopen = true;
-                            console.log('✅ Dialog listo para reabrir');
-                        }, 100);
-                    }
-                });
+                console.log('✅ ExportDialogView inyectado para sesión:', this._sessionId || 'unknown');
             """);
             
-            System.out.println("✅ ExportDialogView inyectado y configurado");
+            System.out.println("✅ ExportDialogView inyectado para sesión: " + exportDialogView.getSessionInfo());
         }
     }
     
@@ -141,43 +132,21 @@ public class DashboardView extends VerticalLayout {
         initializeExportSystem();
     }
     
-    // ✅ RESTAURADO: Método crítico para la exportación
+    // ✅ CORREGIDO: Inicialización para session scoped  
     private void initializeExportSystem() {
         try {
             if (exportDialogView == null) {
-                // Crear ExportDialogView manualmente si no está inyectado
-                createManualExportDialog();
-            }
-            
-            // Verificar que el dialog esté completamente inicializado
-            if (exportDialogView != null) {
-                // Asegurar que el dialog sea reutilizable
-                exportDialogView.getElement().executeJs("""
-                    // Marcar como reutilizable
-                    this._isReusable = true;
-                    this._initialized = true;
-                    
-                    // Listener para limpiar estado al cerrar
-                    this.addEventListener('opened-changed', (e) => {
-                        if (!e.detail.value) {
-                            // Dialog cerrado, limpiar estado
-                            console.log('🔄 Dialog cerrado, limpiando estado');
-                            setTimeout(() => {
-                                this._canReopen = true;
-                            }, 100);
-                        }
-                    });
-                """);
-                
-                System.out.println("✅ Sistema de exportación inicializado correctamente");
+                System.out.println("⚠️ ExportDialogView es null, será creado automáticamente por Spring");
+                // No crear manualmente, dejar que Spring lo inyecte por sesión
             } else {
-                System.out.println("⚠️ ExportDialogView no se pudo inicializar");
+                System.out.println("✅ ExportDialogView ya disponible: " + exportDialogView.getSessionInfo());
             }
         } catch (Exception e) {
             System.err.println("❌ Error inicializando sistema de exportación: " + e.getMessage());
             e.printStackTrace();
         }
     }
+
     
 
 // ✅ HOTFIX: Método createManualExportDialog() corregido
@@ -1413,31 +1382,25 @@ private void createManualExportDialog() {
                 .set("box-shadow", "0 4px 14px rgba(0, 0, 0, 0.1)"));
     }
     
-// ✅ HOTFIX: Método showExportModalDirectly() más robusto
-private void showExportModalDirectly() {
-    try {
-        System.out.println("🔍 Verificando ExportDialogView...");
-        
-        // SIEMPRE crear uno nuevo para asegurar que funciona
-        if (exportDialogView == null) {
-            System.out.println("⚠️ ExportDialogView es null, creando uno nuevo...");
-            createManualExportDialog();
+    // ✅ SIMPLIFICADO: Método principal de exportación
+    private void showExportModalDirectly() {
+        try {
+            System.out.println("🔍 Verificando ExportDialogView...");
+            
+            if (exportDialogView != null) {
+                System.out.println("✅ Abriendo ExportDialogView: " + exportDialogView.getSessionInfo());
+                exportDialogView.open();
+                showNotification("📊 Abriendo exportación...", NotificationVariant.LUMO_PRIMARY);
+            } else {
+                System.err.println("❌ ExportDialogView no disponible - revisar inyección");
+                showNotification("❌ Sistema de exportación no disponible", NotificationVariant.LUMO_ERROR);
+            }
+        } catch (Exception e) {
+            System.err.println("❌ Error en showExportModalDirectly: " + e.getMessage());
+            e.printStackTrace();
+            showNotification("❌ Error abriendo exportación: " + e.getMessage(), NotificationVariant.LUMO_ERROR);
         }
-        
-        if (exportDialogView != null) {
-            System.out.println("✅ Abriendo ExportDialogView...");
-            exportDialogView.open();
-            showNotification("📊 Abriendo exportación...", NotificationVariant.LUMO_PRIMARY);
-        } else {
-            System.err.println("❌ No se pudo crear ExportDialogView");
-            showNotification("❌ Sistema de exportación no disponible", NotificationVariant.LUMO_ERROR);
-        }
-    } catch (Exception e) {
-        System.err.println("❌ Error en showExportModalDirectly: " + e.getMessage());
-        e.printStackTrace();
-        showNotification("❌ Error abriendo exportación: " + e.getMessage(), NotificationVariant.LUMO_ERROR);
     }
-}
     
     // === MÉTODOS DE EVENTOS PRINCIPALES ===
     
@@ -1544,54 +1507,50 @@ private void showExportModalDirectly() {
     
     // === EVENTO ONATTACH CORREGIDO ===
     
-    @Override
-    protected void onAttach(AttachEvent attachEvent) {
-        super.onAttach(attachEvent);
-        
-        // ✅ Verificar y reinicializar el sistema de exportación si es necesario
-        UI.getCurrent().access(() -> {
-            if (exportDialogView == null) {
-                System.out.println("🔄 ExportDialogView null en onAttach, reinicializando...");
-                initializeExportSystem();
+// ✅ ACTUALIZADO: Verificación en onAttach
+@Override
+protected void onAttach(AttachEvent attachEvent) {
+    super.onAttach(attachEvent);
+    
+    // Verificar sistema de exportación después de attach
+    UI.getCurrent().access(() -> {
+        if (exportDialogView == null) {
+            System.out.println("⚠️ ExportDialogView null en onAttach - Spring debería inyectarlo pronto");
+        } else {
+            System.out.println("✅ ExportDialogView disponible en onAttach: " + exportDialogView.getSessionInfo());
+        }
+    });
+    
+    // Resto del código de animación...
+    getElement().executeJs("""
+        // Animación de entrada suave
+        const elements = document.querySelectorAll('.ultra-dashboard > *');
+        elements.forEach((el, index) => {
+            if (el) {
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(30px)';
+                
+                setTimeout(() => {
+                    el.style.transition = 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
+                    el.style.opacity = '1';
+                    el.style.transform = 'translateY(0)';
+                }, index * 100);
             }
         });
         
-        // ✅ ANIMACIÓN DE ENTRADA LIMPIA
-        getElement().executeJs("""
-            // Animación de entrada suave
-            const elements = document.querySelectorAll('.ultra-dashboard > *');
-            elements.forEach((el, index) => {
-                if (el) {
-                    el.style.opacity = '0';
-                    el.style.transform = 'translateY(30px)';
-                    
-                    setTimeout(() => {
-                        el.style.transition = 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
-                        el.style.opacity = '1';
-                        el.style.transform = 'translateY(0)';
-                    }, index * 100);
-                }
-            });
-            
-            // Configurar eventos globales de exportación
-            window.addEventListener('exportMetric', (e) => {
-                console.log('🚀 Export triggered for metric:', e.detail);
-            });
-            
-            // Sistema de métricas de rendimiento
-            window.dashboardMetrics = {
-                startTime: Date.now(),
-                updateCount: 0,
-                exportCount: 0
-            };
-            
-            // ✅ MENSAJE DE BIENVENIDA LIMPIO
-            console.log('🚀 Dashboard Ultra Pro cargado');
-            console.log('📊 Sistema de exportación: VERIFICANDO...');
-        """);
+        // Sistema de métricas de rendimiento
+        window.dashboardMetrics = {
+            startTime: Date.now(),
+            updateCount: 0,
+            exportCount: 0
+        };
         
-        // Inicializar características avanzadas
-        initializeKeyboardShortcuts();
-        setupAdvancedFeatures();
-    }
+        console.log('🚀 Dashboard Ultra Pro cargado');
+        console.log('📊 Sistema de exportación: VERIFICANDO...');
+    """);
+    
+    // Inicializar características avanzadas
+    initializeKeyboardShortcuts();
+    setupAdvancedFeatures();
+}
 }
