@@ -97,24 +97,6 @@ public class DashboardView extends VerticalLayout {
         initializeUltraProDashboard();
     }
     
-    // ✅ CORREGIDO: Inyección para session scoped
-    @Autowired(required = false)
-    public void setExportDialogView(ExportDialogView exportDialogView) {
-        this.exportDialogView = exportDialogView;
-        
-        if (exportDialogView != null) {
-            // Configurar el dialog inyectado para persistencia por sesión
-            exportDialogView.getElement().executeJs("""
-                // Marcar como persistente por sesión
-                this._injected = true;
-                this._persistent = true;
-                
-                console.log('✅ ExportDialogView inyectado para sesión:', this._sessionId || 'unknown');
-            """);
-            
-            System.out.println("✅ ExportDialogView inyectado para sesión: " + exportDialogView.getSessionInfo());
-        }
-    }
     
     private void initializeUltraProDashboard() {
         addClassName("ultra-dashboard");
@@ -132,23 +114,40 @@ public class DashboardView extends VerticalLayout {
         initializeExportSystem();
     }
     
-    // ✅ CORREGIDO: Inicialización para session scoped  
+    // ✅ SIMPLIFICADO: Inicialización sin dependencias complejas
     private void initializeExportSystem() {
         try {
+            // Crear siempre una nueva instancia para evitar conflictos
             if (exportDialogView == null) {
-                System.out.println("⚠️ ExportDialogView es null, será creado automáticamente por Spring");
-                // No crear manualmente, dejar que Spring lo inyecte por sesión
+                System.out.println("🔧 Creando nueva instancia de ExportDialogView...");
+                createNewExportDialog();
+            }
+            
+            if (exportDialogView != null) {
+                System.out.println("✅ ExportDialogView disponible: " + exportDialogView.getInstanceInfo());
             } else {
-                System.out.println("✅ ExportDialogView ya disponible: " + exportDialogView.getSessionInfo());
+                System.out.println("⚠️ No se pudo crear ExportDialogView");
             }
         } catch (Exception e) {
             System.err.println("❌ Error inicializando sistema de exportación: " + e.getMessage());
             e.printStackTrace();
         }
     }
-
     
-
+    // ✅ NUEVO: Método para crear instancia específica
+    private void createNewExportDialog() {
+        try {
+            // Crear instancia directamente (sin inyección problemática)
+            exportDialogView = new ExportDialogView();
+            
+            if (exportDialogView != null) {
+                System.out.println("✅ Nueva instancia de ExportDialogView creada: " + exportDialogView.getInstanceInfo());
+            }
+        } catch (Exception e) {
+            System.err.println("❌ Error creando nueva instancia de ExportDialogView: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
 // ✅ HOTFIX: Método createManualExportDialog() corregido
 private void createManualExportDialog() {
     try {
@@ -1382,26 +1381,47 @@ private void createManualExportDialog() {
                 .set("box-shadow", "0 4px 14px rgba(0, 0, 0, 0.1)"));
     }
     
-    // ✅ SIMPLIFICADO: Método principal de exportación
+    // ✅ CORREGIDO: Método principal sin complejidad
     private void showExportModalDirectly() {
         try {
             System.out.println("🔍 Verificando ExportDialogView...");
             
+            // Asegurar que siempre tenemos una instancia válida
+            if (exportDialogView == null) {
+                System.out.println("⚠️ ExportDialogView es null, creando nueva instancia...");
+                createNewExportDialog();
+            }
+            
             if (exportDialogView != null) {
-                System.out.println("✅ Abriendo ExportDialogView: " + exportDialogView.getSessionInfo());
+                System.out.println("✅ Abriendo ExportDialogView: " + exportDialogView.getInstanceInfo());
                 exportDialogView.open();
                 showNotification("📊 Abriendo exportación...", NotificationVariant.LUMO_PRIMARY);
             } else {
-                System.err.println("❌ ExportDialogView no disponible - revisar inyección");
+                System.err.println("❌ No se pudo crear ExportDialogView");
                 showNotification("❌ Sistema de exportación no disponible", NotificationVariant.LUMO_ERROR);
             }
         } catch (Exception e) {
             System.err.println("❌ Error en showExportModalDirectly: " + e.getMessage());
             e.printStackTrace();
-            showNotification("❌ Error abriendo exportación: " + e.getMessage(), NotificationVariant.LUMO_ERROR);
-        }
-    }
-    
+            
+            // Intentar recrear en caso de error
+            try {
+                System.out.println("🔄 Intentando recrear ExportDialogView...");
+                exportDialogView = null;
+                createNewExportDialog();
+                
+                if (exportDialogView != null) {
+                    exportDialogView.open();
+                    showNotification("📊 Exportación reiniciada", NotificationVariant.LUMO_SUCCESS);
+                } else {
+                    showNotification("❌ Error crítico en exportación", NotificationVariant.LUMO_ERROR);
+                }
+            } catch (Exception retryError) {
+                System.err.println("❌ Error en reintento: " + retryError.getMessage());
+                showNotification("❌ Error crítico: " + retryError.getMessage(), NotificationVariant.LUMO_ERROR);
+            }
+         }
+     }
     // === MÉTODOS DE EVENTOS PRINCIPALES ===
     
     private void toggleFullscreen() {
@@ -1507,7 +1527,7 @@ private void createManualExportDialog() {
     
     // === EVENTO ONATTACH CORREGIDO ===
     
-// ✅ ACTUALIZADO: Verificación en onAttach
+// ✅ ACTUALIZADO: onAttach sin complejidad
 @Override
 protected void onAttach(AttachEvent attachEvent) {
     super.onAttach(attachEvent);
@@ -1515,13 +1535,14 @@ protected void onAttach(AttachEvent attachEvent) {
     // Verificar sistema de exportación después de attach
     UI.getCurrent().access(() -> {
         if (exportDialogView == null) {
-            System.out.println("⚠️ ExportDialogView null en onAttach - Spring debería inyectarlo pronto");
+            System.out.println("🔧 ExportDialogView null en onAttach, creando instancia...");
+            createNewExportDialog();
         } else {
-            System.out.println("✅ ExportDialogView disponible en onAttach: " + exportDialogView.getSessionInfo());
+            System.out.println("✅ ExportDialogView ya disponible en onAttach: " + exportDialogView.getInstanceInfo());
         }
     });
     
-    // Resto del código de animación...
+    // Animación de entrada
     getElement().executeJs("""
         // Animación de entrada suave
         const elements = document.querySelectorAll('.ultra-dashboard > *');
@@ -1552,5 +1573,16 @@ protected void onAttach(AttachEvent attachEvent) {
     // Inicializar características avanzadas
     initializeKeyboardShortcuts();
     setupAdvancedFeatures();
+}
+    // ✅ OPCIONAL: Método para recrear el dialog si hay problemas
+private void recreateExportDialogIfNeeded() {
+    try {
+        if (exportDialogView == null) {
+            System.out.println("🔄 Recreando ExportDialogView...");
+            createNewExportDialog();
+        }
+    } catch (Exception e) {
+        System.err.println("❌ Error recreando ExportDialogView: " + e.getMessage());
+    }
 }
 }

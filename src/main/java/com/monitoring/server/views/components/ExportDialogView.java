@@ -7,7 +7,6 @@ import java.nio.charset.StandardCharsets;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import com.monitoring.server.dto.export.ExportRequest;
@@ -32,26 +31,24 @@ import com.vaadin.flow.component.progressbar.ProgressBar;
 import com.vaadin.flow.component.radiobutton.RadioButtonGroup;
 import com.vaadin.flow.component.radiobutton.RadioGroupVariant;
 import com.vaadin.flow.component.textfield.TextField;
-import com.vaadin.flow.spring.annotation.VaadinSessionScope;
 
 /**
- * 🎨 ExportDialogView SCOPED POR SESIÓN - SOLUCIÓN DEFINITIVA
- * ✅ Una instancia por usuario/sesión para evitar conflictos
- * ✅ Sistema de exportación robusto y aislado
- * ✅ Sin problemas de concurrencia entre usuarios
- * ✅ Persistencia individual por sesión
+ * 🎨 ExportDialogView - VERSIÓN FINAL ESTABLE
+ * ✅ Sin @VaadinSessionScope para evitar problemas de inicialización
+ * ✅ Cada DashboardView crea su propia instancia
+ * ✅ Sistema de exportación funcional y estable
+ * ✅ Sin problemas de concurrencia
  */
 @Component
-@VaadinSessionScope  // ✅ CRÍTICO: Una instancia por sesión Vaadin
 public class ExportDialogView extends Dialog {
 
     private static final Logger logger = LoggerFactory.getLogger(ExportDialogView.class);
     
-    // ✅ Inyección de servicio (compartido está bien)
+    // ✅ Inyección de servicio
     @Autowired
     private ExportService exportService;
     
-    // Componentes principales (ahora individuales por sesión)
+    // Componentes principales
     private RadioButtonGroup<String> typeSelector;
     private ComboBox<String> formatSelector;
     private RadioButtonGroup<String> periodSelector;
@@ -70,27 +67,26 @@ public class ExportDialogView extends Dialog {
     private Button cancelButton;
     private VerticalLayout progressSection;
     
-    // Estado (individual por sesión)
+    // Estado individual
     private boolean isExporting = false;
     private long exportStartTime;
-    private String sessionId;
+    private String instanceId;
     
     public ExportDialogView() {
-        // Generar ID único para esta sesión
-        this.sessionId = "session-" + System.currentTimeMillis() + "-" + hashCode();
+        // ID único para esta instancia
+        this.instanceId = "instance-" + System.currentTimeMillis() + "-" + hashCode();
         
-        logger.info("🔧 Creando ExportDialogView para sesión: {}", sessionId);
+        logger.info("🔧 Creando ExportDialogView - ID: {}", instanceId);
         
         initializeDialog();
         createLayout();
         configureEvents();
         
-        // ✅ CONFIGURACIÓN DE PERSISTENCIA POR SESIÓN
+        // ✅ CONFIGURACIÓN ESTABLE DE PERSISTENCIA
         getElement().executeJs("""
-            // Configurar como dialog persistente y reutilizable POR SESIÓN
+            // Configurar persistencia básica
             this._persistent = true;
-            this._sessionId = $0;
-            this.modality = 'modeless';
+            this._instanceId = $0;
             this._readyToReopen = true;
             
             // Prevenir auto-destrucción
@@ -102,27 +98,27 @@ public class ExportDialogView extends Dialog {
             // Configurar para múltiples usos
             this.addEventListener('opened-changed', (e) => {
                 if (!e.detail.value) {
-                    // Al cerrar, marcar como listo para reabrir
                     setTimeout(() => {
                         this._readyToReopen = true;
-                        console.log('✅ ExportDialog sesión ' + $0 + ' listo para reabrir');
+                        console.log('✅ ExportDialog instancia ' + $0 + ' listo para reabrir');
                     }, 100);
                 }
             });
             
-            console.log('✅ ExportDialogView inicializado con persistencia - Sesión: ' + $0);
-        """, sessionId);
+            console.log('✅ ExportDialogView inicializado - Instancia: ' + $0);
+        """, instanceId);
     }
     
     private void initializeDialog() {
-        setHeaderTitle("📊 Export System Data - Session: " + sessionId.substring(sessionId.length() - 8));
+        setHeaderTitle("📊 Export System Data");
         setWidth("700px");
         setHeight("600px");
         setModal(true);
         setDraggable(true);
         setResizable(false);
         
-        addClassName("export-dialog-" + sessionId);
+        addClassName("export-dialog");
+        addClassName("export-dialog-" + instanceId);
     }
     
     private void createLayout() {
@@ -131,19 +127,13 @@ public class ExportDialogView extends Dialog {
         mainLayout.setSpacing(true);
         mainLayout.setAlignItems(FlexComponent.Alignment.STRETCH);
         
-        // === SECCIÓN 1: TIPO DE EXPORTACIÓN ===
+        // === SECCIONES DEL DIALOG ===
         mainLayout.add(createTypeSelectionSection());
-        
-        // === SECCIÓN 2: FORMATO Y CONFIGURACIÓN ===
         mainLayout.add(createFormatConfigSection());
-        
-        // === SECCIÓN 3: FILTROS DE TIEMPO ===
         mainLayout.add(createTimeFiltersSection());
-        
-        // === SECCIÓN 4: OPCIONES AVANZADAS ===
         mainLayout.add(createAdvancedOptionsSection());
         
-        // === SECCIÓN 5: PROGRESO Y ACCIONES ===
+        // === PROGRESO Y ACCIONES ===
         progressSection = createProgressSection();
         mainLayout.add(progressSection);
         mainLayout.add(createActionButtonsSection());
@@ -177,13 +167,11 @@ public class ExportDialogView extends Dialog {
         H4 title = new H4("📄 Format & Configuration");
         title.getStyle().set("margin", "0 0 10px 0").set("color", "#2c3e50");
         
-        // Layout horizontal para formato y título
         HorizontalLayout formatRow = new HorizontalLayout();
         formatRow.setWidthFull();
         formatRow.setAlignItems(FlexComponent.Alignment.END);
         
         formatSelector = new ComboBox<>("Export Format");
-        // ✅ Sin JSON
         formatSelector.setItems("CSV", "PDF", "EXCEL");
         formatSelector.setValue("CSV");
         formatSelector.setWidth("200px");
@@ -201,7 +189,6 @@ public class ExportDialogView extends Dialog {
         reportTitleField.setWidth("300px");
         
         formatRow.add(formatSelector, reportTitleField);
-        
         section.add(title, formatRow);
         return section;
     }
@@ -220,11 +207,10 @@ public class ExportDialogView extends Dialog {
         periodSelector.setValue("Last 24 Hours");
         periodSelector.addThemeVariants(RadioGroupVariant.LUMO_VERTICAL);
         
-        // Campos de fecha personalizada
         HorizontalLayout customDateLayout = new HorizontalLayout();
         customDateLayout.setWidthFull();
         customDateLayout.setAlignItems(FlexComponent.Alignment.END);
-        customDateLayout.setVisible(false); // Inicialmente oculto
+        customDateLayout.setVisible(false);
         
         startDatePicker = new DateTimePicker("Start Date");
         startDatePicker.setValue(LocalDateTime.now().minusDays(1));
@@ -236,7 +222,6 @@ public class ExportDialogView extends Dialog {
         
         customDateLayout.add(startDatePicker, endDatePicker);
         
-        // Mostrar/ocultar campos personalizados
         periodSelector.addValueChangeListener(event -> {
             boolean isCustom = "Custom Range".equals(event.getValue());
             customDateLayout.setVisible(isCustom);
@@ -254,7 +239,6 @@ public class ExportDialogView extends Dialog {
         H4 title = new H4("⚙️ Advanced Options");
         title.getStyle().set("margin", "0 0 10px 0").set("color", "#2c3e50");
         
-        // Opciones de contenido
         VerticalLayout contentOptions = new VerticalLayout();
         contentOptions.setPadding(false);
         contentOptions.setSpacing(false);
@@ -271,7 +255,6 @@ public class ExportDialogView extends Dialog {
         includeDetailedAnalysisCheckbox.setValue(false);
         includeDetailedAnalysisCheckbox.getStyle().set("margin-bottom", "5px");
         
-        // Filtro de procesos (solo visible cuando se selecciona Process Data)
         processFilterSelector = new ComboBox<>("Process Filter");
         processFilterSelector.setItems("ALL", "HIGH_CPU", "HIGH_MEMORY", "SYSTEM", "USER");
         processFilterSelector.setValue("ALL");
@@ -328,14 +311,12 @@ public class ExportDialogView extends Dialog {
     }
     
     private void configureEvents() {
-        // Mostrar/ocultar filtro de procesos según el tipo seleccionado
         typeSelector.addValueChangeListener(event -> {
             boolean showProcessFilter = "Process Data".equals(event.getValue()) || 
                                       "Complete Report".equals(event.getValue());
             processFilterSelector.setVisible(showProcessFilter);
         });
         
-        // Habilitar/deshabilitar opciones según el formato
         formatSelector.addValueChangeListener(event -> {
             String format = event.getValue();
             boolean supportsCharts = "PDF".equals(format) || "EXCEL".equals(format);
@@ -347,10 +328,10 @@ public class ExportDialogView extends Dialog {
         });
     }
     
-    // === MÉTODOS PÚBLICOS PARA EL DASHBOARD ===
+    // === MÉTODOS PÚBLICOS ===
     
     public void openForMetrics() {
-        logger.info("🎯 Abriendo para métricas - Sesión: {}", sessionId);
+        logger.info("🎯 Abriendo para métricas - Instancia: {}", instanceId);
         typeSelector.setValue("System Metrics");
         formatSelector.setValue("CSV");
         periodSelector.setValue("Last 24 Hours");
@@ -358,7 +339,7 @@ public class ExportDialogView extends Dialog {
     }
     
     public void openForProcesses() {
-        logger.info("🎯 Abriendo para procesos - Sesión: {}", sessionId);
+        logger.info("🎯 Abriendo para procesos - Instancia: {}", instanceId);
         typeSelector.setValue("Process Data");
         formatSelector.setValue("EXCEL");
         periodSelector.setValue("Last Hour");
@@ -366,7 +347,7 @@ public class ExportDialogView extends Dialog {
     }
     
     public void openForCompleteReport() {
-        logger.info("🎯 Abriendo para reporte completo - Sesión: {}", sessionId);
+        logger.info("🎯 Abriendo para reporte completo - Instancia: {}", instanceId);
         typeSelector.setValue("Complete Report");
         formatSelector.setValue("PDF");
         periodSelector.setValue("Last 24 Hours");
@@ -375,34 +356,32 @@ public class ExportDialogView extends Dialog {
         open();
     }
 
-    // === ✅ MÉTODO startExport CON LOGGING POR SESIÓN ===
+    // === ✅ MÉTODO startExport ESTABLE ===
     
     private void startExport() {
         if (isExporting) {
-            logger.warn("⚠️ Export ya en progreso para sesión: {}", sessionId);
+            logger.warn("⚠️ Export ya en progreso para instancia: {}", instanceId);
             return;
         }
         
         try {
-            logger.info("🚀 Iniciando export para sesión: {}", sessionId);
+            logger.info("🚀 Iniciando export para instancia: {}", instanceId);
             setExportingState(true);
             showProgressSection(true);
             
-            // Construir URL del endpoint según configuración
             String exportUrl = buildExportUrl();
+            logger.info("🔗 URL construida para instancia {}: {}", instanceId, exportUrl);
             
-            logger.info("🔗 URL construida para sesión {}: {}", sessionId, exportUrl);
-            
-            // ✅ JavaScript con identificación de sesión
+            // ✅ JavaScript estable con instanceId único
             UI.getCurrent().getPage().executeJs("""
-                console.log('🚀 Iniciando descarga para sesión ' + $1 + ':', $0);
+                console.log('🚀 Iniciando descarga para instancia ' + $1 + ':', $0);
                 
                 fetch($0, {
                     method: 'GET',
                     credentials: 'include'
                 })
                 .then(response => {
-                    console.log('Response status para sesión ' + $1 + ':', response.status);
+                    console.log('Response status para instancia ' + $1 + ':', response.status);
                     if (response.ok) {
                         return response.blob();
                     } else {
@@ -410,7 +389,7 @@ public class ExportDialogView extends Dialog {
                     }
                 })
                 .then(blob => {
-                    console.log('✅ Blob recibido para sesión ' + $1 + ':', blob.size, 'bytes');
+                    console.log('✅ Blob recibido para instancia ' + $1 + ':', blob.size, 'bytes');
                     
                     const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
                     let extension = '.csv';
@@ -420,7 +399,7 @@ public class ExportDialogView extends Dialog {
                     else if ($0.includes('format=PDF')) extension = '.pdf';
                     else if ($0.includes('format=EXCEL')) extension = '.xlsx';
                     
-                    const filename = 'export_session_' + $1 + '_' + timestamp + extension;
+                    const filename = 'export_' + timestamp + extension;
                     
                     // Crear descarga
                     const url = URL.createObjectURL(blob);
@@ -433,12 +412,12 @@ public class ExportDialogView extends Dialog {
                     document.body.removeChild(a);
                     URL.revokeObjectURL(url);
                     
-                    console.log('✅ Descarga completada para sesión ' + $1 + ':', filename);
+                    console.log('✅ Descarga completada para instancia ' + $1 + ':', filename);
                     
-                    // Marcar como completado usando sessionId único
+                    // Variable única por instancia
                     window['exportCompleted_' + $1] = true;
                     
-                    // Resetear UI específica de esta sesión
+                    // Resetear UI específica
                     setTimeout(() => {
                         const dialog = document.querySelector('.export-dialog-' + $1);
                         if (dialog) {
@@ -456,11 +435,11 @@ public class ExportDialogView extends Dialog {
                             const closeButton = dialog.querySelector('vaadin-button[theme*="tertiary"]');
                             if (closeButton) {
                                 closeButton.click();
-                                console.log('✅ Modal cerrado para sesión ' + $1);
+                                console.log('✅ Modal cerrado para instancia ' + $1);
                             }
                         }
                         
-                        // Notificación con ID de sesión
+                        // Notificación
                         const notification = document.createElement('vaadin-notification');
                         notification.setAttribute('position', 'top-end');
                         notification.setAttribute('theme', 'success');
@@ -477,7 +456,7 @@ public class ExportDialogView extends Dialog {
                     }, 1000);
                 })
                 .catch(error => {
-                    console.error('❌ Error en descarga para sesión ' + $1 + ':', error);
+                    console.error('❌ Error en descarga para instancia ' + $1 + ':', error);
                     alert('Error downloading file: ' + error.message);
                     
                     window['exportCompleted_' + $1] = true;
@@ -503,22 +482,21 @@ public class ExportDialogView extends Dialog {
                         }
                     }, 500);
                 });
-                """, exportUrl, sessionId);
+                """, exportUrl, instanceId);
             
-            // Polling específico por sesión
+            // Polling específico por instancia
             checkExportCompletion();
             
         } catch (Exception e) {
-            logger.error("❌ Error iniciando exportación para sesión {}: {}", sessionId, e.getMessage(), e);
+            logger.error("❌ Error iniciando exportación para instancia {}: {}", instanceId, e.getMessage(), e);
             handleExportError(e);
         }
     }
     
-    // ✅ Verificación específica por sesión
     private void checkExportCompletion() {
         UI.getCurrent().getPage().executeJs("""
             return window['exportCompleted_' + $0] || false;
-            """, sessionId).then(Boolean.class, completed -> {
+            """, instanceId).then(Boolean.class, completed -> {
             if (completed != null && completed) {
                 UI.getCurrent().access(() -> {
                     resetExportState();
@@ -539,29 +517,23 @@ public class ExportDialogView extends Dialog {
         });
     }
     
-    // ✅ Reset específico por sesión
     private void resetExportState() {
         setExportingState(false);
         showProgressSection(false);
         
-        // Limpiar variable específica de sesión
-        UI.getCurrent().getPage().executeJs("delete window['exportCompleted_' + $0];", sessionId);
-        
-        // Marcar como listo para reabrir
+        UI.getCurrent().getPage().executeJs("delete window['exportCompleted_' + $0];", instanceId);
         getElement().executeJs("this._readyToReopen = true;");
         
-        logger.info("✅ Estado de exportación reseteado para sesión: {}", sessionId);
+        logger.info("✅ Estado de exportación reseteado para instancia: {}", instanceId);
     }
 
-    // === RESTO DE MÉTODOS (iguales pero con logging por sesión) ===
+    // === MÉTODOS DE UTILIDAD ===
     
     private String buildExportUrl() {
         String baseUrl = "/vaadin-export";
         String type = typeSelector.getValue();
         String format = formatSelector.getValue();
         String period = mapPeriodToString(periodSelector.getValue());
-        
-        logger.info("🔗 Construyendo URL para sesión {} - Type: {}, Format: {}, Period: {}", sessionId, type, format, period);
         
         String endpoint = "";
         
@@ -627,13 +599,7 @@ public class ExportDialogView extends Dialog {
             }
         }
         
-        // Agregar sessionId como parámetro para tracking
-        urlBuilder.append(urlBuilder.toString().contains("?") ? "&" : "?")
-                 .append("sessionId=").append(sessionId);
-        
-        String finalUrl = urlBuilder.toString();
-        logger.info("🔗 URL final para sesión {}: {}", sessionId, finalUrl);
-        return finalUrl;
+        return urlBuilder.toString();
     }
 
     private String encodeURIComponent(String value) {
@@ -695,7 +661,7 @@ public class ExportDialogView extends Dialog {
         showProgressSection(false);
         
         if (result.isSuccess()) {
-            logger.info("✅ Export exitoso para sesión {}: {}", sessionId, result.getFilename());
+            logger.info("✅ Export exitoso para instancia {}: {}", instanceId, result.getFilename());
             
             triggerDownload(result);
             
@@ -707,7 +673,7 @@ public class ExportDialogView extends Dialog {
             
             close();
         } else {
-            logger.error("❌ Error en exportación para sesión {}: {}", sessionId, result.getErrorMessage());
+            logger.error("❌ Error en exportación para instancia {}: {}", instanceId, result.getErrorMessage());
             Notification.show(
                 "❌ Export failed: " + result.getErrorMessage(),
                 5000, 
@@ -717,10 +683,10 @@ public class ExportDialogView extends Dialog {
     }
     
     private void triggerDownload(ExportResult result) {
-        logger.info("🔽 Iniciando descarga para sesión {}: {} - {}", sessionId, result.getFilename(), result.getFormattedSize());
+        logger.info("🔽 Iniciando descarga para instancia {}: {} - {}", instanceId, result.getFilename(), result.getFormattedSize());
         
         UI.getCurrent().getPage().executeJs("""
-            console.log('🔽 Iniciando descarga para sesión ' + $2 + ':', $1);
+            console.log('🔽 Iniciando descarga para instancia ' + $2 + ':', $1);
             try {
                 const byteArray = new Uint8Array($0);
                 const blob = new Blob([byteArray], { type: $3 });
@@ -728,7 +694,7 @@ public class ExportDialogView extends Dialog {
                 
                 const link = document.createElement('a');
                 link.href = url;
-                link.download = 'session_' + $2 + '_' + $1;
+                link.download = $1;
                 link.style.display = 'none';
                 
                 document.body.appendChild(link);
@@ -736,15 +702,15 @@ public class ExportDialogView extends Dialog {
                 document.body.removeChild(link);
                 URL.revokeObjectURL(url);
                 
-                console.log('✅ Descarga completada para sesión ' + $2);
+                console.log('✅ Descarga completada para instancia ' + $2);
             } catch (error) {
-                console.error('❌ Error en descarga para sesión ' + $2 + ':', error);
+                console.error('❌ Error en descarga para instancia ' + $2 + ':', error);
                 alert('Error downloading file: ' + error.message);
             }
             """, 
             result.getData(), 
             result.getFilename(), 
-            sessionId,
+            instanceId,
             result.getMimeType()
         );
     }
@@ -753,7 +719,7 @@ public class ExportDialogView extends Dialog {
         setExportingState(false);
         showProgressSection(false);
         
-        logger.error("❌ Error en exportación para sesión {}: {}", sessionId, error.getMessage(), error);
+        logger.error("❌ Error en exportación para instancia {}: {}", instanceId, error.getMessage(), error);
         
         Notification.show(
             "❌ Export error: " + error.getMessage(),
@@ -772,7 +738,7 @@ public class ExportDialogView extends Dialog {
         
         if (exporting) {
             exportButton.setIcon(VaadinIcon.CLOCK.create());
-            progressLabel.setText("Processing export for session " + sessionId.substring(sessionId.length() - 8) + "...");
+            progressLabel.setText("Processing export...");
         } else {
             exportButton.setIcon(VaadinIcon.DOWNLOAD.create());
         }
@@ -784,10 +750,10 @@ public class ExportDialogView extends Dialog {
         }
     }
     
-    // ✅ OVERRIDE del método close con logging por sesión
+    // ✅ OVERRIDE del método close estable
     @Override
     public void close() {
-        logger.info("🔒 Cerrando dialog para sesión: {}", sessionId);
+        logger.info("🔒 Cerrando dialog para instancia: {}", instanceId);
         super.close();
         
         UI.getCurrent().access(() -> {
@@ -796,12 +762,12 @@ public class ExportDialogView extends Dialog {
             
             getElement().executeJs("this._readyToReopen = true;");
             
-            logger.info("✅ Dialog cerrado y reseteado para sesión: {}", sessionId);
+            logger.info("✅ Dialog cerrado y reseteado para instancia: {}", instanceId);
         });
     }
     
-    // ✅ Método para obtener información de la sesión
-    public String getSessionInfo() {
-        return "Session: " + sessionId + ", Ready: " + !isExporting;
+    // ✅ Método para obtener información de la instancia
+    public String getInstanceInfo() {
+        return "Instance: " + instanceId + ", Ready: " + !isExporting;
     }
 }
