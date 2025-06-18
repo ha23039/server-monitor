@@ -332,7 +332,9 @@ public class ExportDialogView extends Dialog {
         open();
     }
 
- // === ✅ MÉTODO startExport ULTRA SIMPLE - SIN THREAD PROBLEMÁTICO ===
+
+
+// === ✅ MÉTODO startExport CON RESET DE ESTADO COMPLETO ===
     
     private void startExport() {
         if (isExporting) {
@@ -348,7 +350,7 @@ public class ExportDialogView extends Dialog {
             
             logger.info("🚀 Iniciando descarga desde: {}", exportUrl);
             
-            // ✅ SOLUCIÓN ULTRA SIMPLE: JavaScript maneja TODO
+            // ✅ SOLUCIÓN COMPLETA: JavaScript maneja TODO + Reset de estado Java
             UI.getCurrent().getPage().executeJs("""
                 console.log('🚀 Abriendo descarga:', $0);
                 
@@ -392,15 +394,36 @@ public class ExportDialogView extends Dialog {
                     
                     console.log('✅ Descarga completada:', filename);
                     
-                    // ✅ CRÍTICO: Cerrar el modal después de 1 segundo usando JavaScript
+                    // ✅ CRÍTICO: Marcar como completado para que Java resetee estado
+                    window.exportCompleted = true;
+                    
+                    // ✅ CRÍTICO: Resetear UI y cerrar modal
                     setTimeout(() => {
-                        // Buscar y cerrar el dialog
+                        // Buscar el dialog y resetear su estado
                         const dialog = document.querySelector('vaadin-dialog-overlay');
                         if (dialog) {
+                            // Resetear botón de exportación
+                            const exportButton = dialog.querySelector('vaadin-button[theme*="primary"]');
+                            if (exportButton) {
+                                exportButton.disabled = false;
+                                exportButton.textContent = 'Export Data';
+                                const icon = exportButton.querySelector('vaadin-icon');
+                                if (icon) {
+                                    icon.setAttribute('icon', 'vaadin:download');
+                                }
+                            }
+                            
+                            // Ocultar barra de progreso
+                            const progressSection = dialog.querySelector('.progress-section');
+                            if (progressSection) {
+                                progressSection.style.display = 'none';
+                            }
+                            
+                            // Cerrar modal
                             const closeButton = dialog.querySelector('vaadin-button[theme*="tertiary"]');
                             if (closeButton) {
                                 closeButton.click();
-                                console.log('✅ Modal cerrado automáticamente');
+                                console.log('✅ Modal cerrado y estado reseteado');
                             }
                         }
                         
@@ -424,10 +447,27 @@ public class ExportDialogView extends Dialog {
                     console.error('❌ Error en descarga:', error);
                     alert('Error downloading file: ' + error.message);
                     
-                    // Cerrar modal también en caso de error
+                    // ✅ CRÍTICO: Marcar como error para reseteo
+                    window.exportCompleted = true;
+                    
+                    // Resetear y cerrar modal también en caso de error
                     setTimeout(() => {
                         const dialog = document.querySelector('vaadin-dialog-overlay');
                         if (dialog) {
+                            // Resetear botón
+                            const exportButton = dialog.querySelector('vaadin-button[theme*="primary"]');
+                            if (exportButton) {
+                                exportButton.disabled = false;
+                                exportButton.textContent = 'Export Data';
+                            }
+                            
+                            // Ocultar progreso
+                            const progressSection = dialog.querySelector('.progress-section');
+                            if (progressSection) {
+                                progressSection.style.display = 'none';
+                            }
+                            
+                            // Cerrar
                             const closeButton = dialog.querySelector('vaadin-button[theme*="tertiary"]');
                             if (closeButton) {
                                 closeButton.click();
@@ -437,12 +477,64 @@ public class ExportDialogView extends Dialog {
                 });
                 """, exportUrl);
             
+            // ✅ SOLUCIÓN: Polling para verificar cuando JavaScript termine y resetear estado Java
+            UI.getCurrent().getPage().executeJs("""
+                return window.exportCompleted || false;
+                """).then(Boolean.class, completed -> {
+                if (completed != null && completed) {
+                    // ✅ JavaScript terminó, resetear estado Java
+                    UI.getCurrent().access(() -> {
+                        resetExportState();
+                    });
+                } else {
+                    // ✅ Seguir verificando cada 500ms hasta que termine
+                    checkExportCompletion();
+                }
+            });
+            
         } catch (Exception e) {
             logger.error("❌ Error iniciando exportación", e);
             handleExportError(e);
         }
     }
-
+    
+    // ✅ MÉTODO AUXILIAR: Verificar cuando JavaScript termine
+    private void checkExportCompletion() {
+        UI.getCurrent().getPage().executeJs("""
+            return window.exportCompleted || false;
+            """).then(Boolean.class, completed -> {
+            if (completed != null && completed) {
+                UI.getCurrent().access(() -> {
+                    resetExportState();
+                });
+            } else {
+                // Continuar verificando si no ha pasado mucho tiempo
+                if (System.currentTimeMillis() - exportStartTime < 30000) { // 30 segundos max
+                    UI.getCurrent().getPage().executeJs("""
+                        setTimeout(() => {
+                            // Trigger next check
+                        }, 500);
+                        """).then(result -> checkExportCompletion());
+                } else {
+                    // Timeout - resetear por seguridad
+                    UI.getCurrent().access(() -> {
+                        resetExportState();
+                    });
+                }
+            }
+        });
+    }
+    
+    // ✅ MÉTODO AUXILIAR: Resetear estado Java completamente
+    private void resetExportState() {
+        setExportingState(false);
+        showProgressSection(false);
+        
+        // Limpiar variable de JavaScript
+        UI.getCurrent().getPage().executeJs("delete window.exportCompleted;");
+        
+        logger.info("✅ Estado de exportación reseteado completamente");
+    }
     /**
      * Builds the export URL based on the current dialog selections.
      */
